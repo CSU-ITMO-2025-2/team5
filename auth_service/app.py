@@ -6,7 +6,10 @@ from database import get_db
 from models import User
 from sqlalchemy.future import select
 
-app = FastAPI()
+app = FastAPI(
+    docs_url="/auth/docs",
+    openapi_url="/auth/openapi.json"
+)
 
 @app.post("/register/")
 async def register(user: UserCreate, db: Session = Depends(get_db)):
