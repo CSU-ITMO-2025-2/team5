@@ -5,7 +5,7 @@ from security import get_current_user
 
 app = FastAPI(
     docs_url="/producer/docs",
-    openapi_url="/producer/openapi.json"
+    openapi_url="/openapi.json"
 )
 
 @app.post("/submit-review/")
