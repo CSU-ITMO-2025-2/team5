@@ -73,7 +73,7 @@ jobs:
           path: helm-config
           token: ${{ secrets.CONFIG_REPO_PAT }}
 
-      - name: Update image.tag in helm/values.yaml
+      - name: Update image tags in helm/values.yaml
         id: update_tag
         run: |
           NEW_TAG="${{ needs.build.outputs.image_tag }}"
@@ -82,8 +82,10 @@ jobs:
           curl -sSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
           chmod +x /usr/local/bin/yq
 
-          yq eval -i ".image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
-          
+          yq eval -i ".auth.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
+          yq eval -i ".ml.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
+          yq eval -i ".producer.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
+
           if [[ $(git -C helm-config status --porcelain) ]]; then
             echo "::set-output name=files_changed::true"
           else
