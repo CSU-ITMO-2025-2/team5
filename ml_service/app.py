@@ -5,7 +5,7 @@ from schemas import TimeoutRequest, ReviewResponse, ReviewsListResponse
 
 app = FastAPI(
     docs_url="/ml/docs",
-    openapi_url="/ml/openapi.json"
+    openapi_url="/openapi.json"
 )
 
 @app.post("/analyze-sentiment/", response_model=ReviewsListResponse)
