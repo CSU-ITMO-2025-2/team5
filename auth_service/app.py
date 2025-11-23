@@ -7,7 +7,7 @@ from models import User
 from sqlalchemy.future import select
 
 app = FastAPI(
-    root_path="/auth",
+    servers=[{"url": "/auth"}],
     docs_url="/auth/docs",
     openapi_url="/openapi.json"
 )
