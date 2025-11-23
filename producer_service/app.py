@@ -4,6 +4,7 @@ from kafka_producer import send_to_kafka
 from security import get_current_user
 
 app = FastAPI(
+    root_path="/producer",
     docs_url="/producer/docs",
     openapi_url="/openapi.json"
 )
