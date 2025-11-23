@@ -7,9 +7,7 @@ from models import User
 from sqlalchemy.future import select
 
 app = FastAPI(
-    docs_url="/docs",
-    openapi_url="/openapi.json",
-    servers=[{"url": "/auth"}]
+    root_path="/auth"
 )
 
 @app.post("/register/")

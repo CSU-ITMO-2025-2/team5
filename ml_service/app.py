@@ -4,9 +4,7 @@ from kafka_consumer import consume_from_kafka
 from schemas import TimeoutRequest, ReviewResponse, ReviewsListResponse
 
 app = FastAPI(
-    docs_url="/docs",
-    openapi_url="/openapi.json",
-    servers=[{"url": "/ml"}]
+    root_path="/ml"
 )
 
 @app.post("/analyze-sentiment/", response_model=ReviewsListResponse)
