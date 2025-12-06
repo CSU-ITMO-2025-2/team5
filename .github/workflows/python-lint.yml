@@ -25,7 +25,7 @@ jobs:
     
     - name: Run Black formatting check
       run: |
-        black --check --diff app/ airflow/
+        black --check --diff auth_service/ ml_service/ notification_service/ producer_service/
     
     - name: Run Pylint
       run: |
