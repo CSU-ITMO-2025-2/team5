@@ -190,7 +190,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    root_path="/producer",
+    root_path="/ml",
     title="ML Service",
     lifespan=lifespan,
     docs_url="/ml/docs",
