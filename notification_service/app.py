@@ -170,7 +170,13 @@ async def lifespan(app: FastAPI):
             logger.info("Notification consumer task cancelled")
 
 
-app = FastAPI(title="Notify Service", lifespan=lifespan)
+app = FastAPI(
+    root_path="/notification",
+    title="Notify Service",
+    docs_url="/notification/docs",
+    openapi_url="/openapi.json",
+    lifespan=lifespan,
+)
 
 
 @app.get("/health")

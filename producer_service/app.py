@@ -13,7 +13,12 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(docs_url="/producer/docs", openapi_url="/openapi.json")
+app = FastAPI(
+    root_path="/producer",
+    title="Producer Service",
+    docs_url="/producer/docs",
+    openapi_url="/openapi.json",
+)
 
 
 @app.on_event("startup")

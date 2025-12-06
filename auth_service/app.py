@@ -27,7 +27,7 @@ from security import (
     verify_password,
 )
 
-app = FastAPI(docs_url="/auth/docs", openapi_url="/openapi.json")
+app = FastAPI(root_path="/auth", docs_url="/auth/docs", openapi_url="/openapi.json")
 
 
 @app.post("/register/")
