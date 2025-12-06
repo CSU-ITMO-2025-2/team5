@@ -7,6 +7,7 @@ on:
       - "auth_service/**"
       - "ml_service/**"
       - "producer_service/**"
+      - "notification_service/**"
 
 jobs:
   build:
@@ -25,6 +26,8 @@ jobs:
             name: ml
           - context: producer_service
             name: producer
+          - context: notification_service
+            name: notification
 
     outputs:
       image_tag: ${{ steps.settag.outputs.image_tag }}
@@ -85,6 +88,7 @@ jobs:
           yq eval -i ".auth.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
           yq eval -i ".ml.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
           yq eval -i ".producer.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
+          yq eval -i ".notification.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
 
           if [[ $(git -C helm-config status --porcelain) ]]; then
             echo "::set-output name=files_changed::true"
