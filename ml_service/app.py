@@ -32,9 +32,7 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv(
 )
 TOPIC_RAW = os.getenv("KAFKA_TOPIC_RAW", "raw_reviews")
 TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed_reviews")
-MODEL_NAME = os.getenv(
-    "MODEL_NAME", "seara/rubert-base-cased-russian-emotion-detection-ru-go-emotions"
-)
+MODEL_NAME = os.getenv("MODEL_NAME", "Aniemore/rubert-tiny2-russian-emotion-detection")
 
 producer: Optional[AIOKafkaProducer] = None
 sentiment_pipeline: Optional[Any] = None
