@@ -29,7 +29,9 @@ from security import (
     verify_password,
 )
 
-app = FastAPI(root_path=os.getenv("ROOT_PATH", ""), docs_url="/docs", openapi_url="/openapi.json")
+app = FastAPI(
+    root_path=os.getenv("ROOT_PATH", ""), docs_url="/docs", openapi_url="/openapi.json"
+)
 
 
 @app.post("/register/")

@@ -87,7 +87,9 @@ def _select_top_label_from_scores(scores: Any) -> Dict[str, float]:
     return {top_label: label_scores[top_label]}
 
 
-async def get_kafka_producer_with_retry(retries: int = 5, delay: int = 2) -> AIOKafkaProducer:
+async def get_kafka_producer_with_retry(
+    retries: int = 5, delay: int = 2
+) -> AIOKafkaProducer:
     """Create and start an AIOKafkaProducer with retries."""
     global producer
     for attempt in range(1, retries + 1):
@@ -120,7 +122,9 @@ async def process_message(msg_value: bytes) -> None:
         review_id = data.get("id")
 
         loop = asyncio.get_running_loop()
-        sentiment_raw = await loop.run_in_executor(None, sentiment_pipeline, review_text)
+        sentiment_raw = await loop.run_in_executor(
+            None, sentiment_pipeline, review_text
+        )
 
         top = _select_top_label_from_scores(sentiment_raw)
         sentiment, score = next(iter(top.items()))

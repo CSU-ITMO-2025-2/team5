@@ -43,7 +43,9 @@ async def shutdown_event() -> None:
 
 
 @app.post("/submit-review/")
-async def submit_review(review: ReviewRequest, username: str = Depends(get_current_user)) -> dict:
+async def submit_review(
+    review: ReviewRequest, username: str = Depends(get_current_user)
+) -> dict:
     """Submit a review to the Kafka topic `raw_reviews`.
 
     Args:
