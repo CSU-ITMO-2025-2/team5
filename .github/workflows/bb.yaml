@@ -10,11 +10,28 @@ on:
       - "notification_service/**"
 
 jobs:
+  define-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.settag.outputs.image_tag }}
+      owner_lc: ${{ steps.setowner.outputs.owner_lc }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Derive image tag
+        id: settag
+        run: echo "image_tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Derive lowercase owner
+        id: setowner
+        run: echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
   build:
+    needs: define-tag
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    timeout-minutes: 30
 
     strategy:
       fail-fast: false
@@ -29,19 +46,8 @@ jobs:
           - context: notification_service
             name: notification
 
-    outputs:
-      image_tag: ${{ steps.settag.outputs.image_tag }}
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Derive image tag
-        id: settag
-        run: echo "image_tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
-      - name: Derive lowercase owner
-        id: setowner
-        run: echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -56,13 +62,13 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.service.context }}
-          file: ${{ matrix.service.context }}/Dockerfile
+          file: ${{ matrix.service.context }}/Dockerfile 
           push: true
           tags: |
-            ghcr.io/${{ steps.setowner.outputs.owner_lc }}/team5-${{ matrix.service.name }}:${{ steps.settag.outputs.image_tag }}
+            ghcr.io/${{ needs.define-tag.outputs.owner_lc }}/team5-${{ matrix.service.name }}:${{ needs.define-tag.outputs.image_tag }}
 
   bump:
-    needs: build
+    needs: [define-tag, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -79,21 +85,25 @@ jobs:
       - name: Update image tags in helm/values.yaml
         id: update_tag
         run: |
-          NEW_TAG="${{ needs.build.outputs.image_tag }}"
+          # Берем тот же самый тег из первого задания
+          NEW_TAG="${{ needs.define-tag.outputs.image_tag }}"
           CONFIG_PATH="helm-config/values.yaml"
 
+          # Установка yq
           curl -sSL -o /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
           chmod +x /usr/local/bin/yq
 
+          # Обновляем все теги
           yq eval -i ".auth.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
           yq eval -i ".ml.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
           yq eval -i ".producer.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
           yq eval -i ".notification.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
 
+          # Проверка изменений (ИСПРАВЛЕННЫЙ СИНТАКСИС)
           if [[ $(git -C helm-config status --porcelain) ]]; then
-            echo "::set-output name=files_changed::true"
+            echo "files_changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::set-output name=files_changed::false"
+            echo "files_changed=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create PR
@@ -102,12 +112,12 @@ jobs:
         with:
           token: ${{ secrets.CONFIG_REPO_PAT }}
           path: helm-config
-          commit-message: "chore(ci): bump image.tag to ${{ needs.build.outputs.image_tag }}"
-          title: "Bump image.tag to ${{ needs.build.outputs.image_tag }}"
+          commit-message: "chore(ci): bump image.tag to ${{ needs.define-tag.outputs.image_tag }}"
+          title: "Bump image.tag to ${{ needs.define-tag.outputs.image_tag }}"
           body: |
-            Auto-generated PR: update `values.yaml` to image tag `${{ needs.build.outputs.image_tag }}`.
+            Auto-generated PR: update `values.yaml` to image tag `${{ needs.define-tag.outputs.image_tag }}`.
             ➡️ **Merge this PR to trigger Argo CD sync in the cluster.**
-          branch: ci/bump-image-${{ needs.build.outputs.image_tag }}
+          branch: ci/bump-image-${{ needs.define-tag.outputs.image_tag }}
           base: main
           labels: ci, automated
           signoff: false
