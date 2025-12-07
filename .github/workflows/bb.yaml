@@ -69,6 +69,9 @@ jobs:
           tags: |
             ghcr.io/${{ needs.define-tag.outputs.owner_lc }}/team5-${{ matrix.service.name }}:${{ needs.define-tag.outputs.image_tag }}
 
+          cache-from: type=registry,ref=ghcr.io/${{ needs.define-tag.outputs.owner_lc }}/team5-${{ matrix.service.name }}:cache
+          cache-to: type=registry,ref=ghcr.io/${{ needs.define-tag.outputs.owner_lc }}/team5-${{ matrix.service.name }}:cache,mode=max
+
   bump:
     needs: [define-tag, build]
     runs-on: ubuntu-latest
