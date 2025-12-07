@@ -33,9 +33,7 @@ TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed_reviews")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 TELEGRAM_API_URL = (
-    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    if TELEGRAM_BOT_TOKEN
-    else None
+    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage" if TELEGRAM_BOT_TOKEN else None
 )
 
 
@@ -72,9 +70,7 @@ async def _send_telegram(message: str) -> None:
     and returns silently.
     """
     if not TELEGRAM_API_URL or not TELEGRAM_CHAT_ID:
-        logger.warning(
-            "Telegram token or chat id not configured; skipping notification"
-        )
+        logger.warning("Telegram token or chat id not configured; skipping notification")
         return
 
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
@@ -84,9 +80,7 @@ async def _send_telegram(message: str) -> None:
             resp.raise_for_status()
             logger.info("Telegram notification sent (status=%s)", resp.status_code)
     except httpx.HTTPStatusError as exc:
-        logger.error(
-            "Telegram HTTP error: %s - %s", exc.response.status_code, exc.response.text
-        )
+        logger.error("Telegram HTTP error: %s - %s", exc.response.status_code, exc.response.text)
     except Exception as exc:
         logger.error("Failed to send telegram message: %s", exc)
 
@@ -171,9 +165,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    root_path="/notification",
+    root_path=os.getenv("ROOT_PATH", ""),
     title="Notify Service",
-    docs_url="/notification/docs",
+    docs_url="/docs",
     openapi_url="/openapi.json",
     lifespan=lifespan,
 )
