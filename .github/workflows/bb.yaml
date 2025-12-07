@@ -8,6 +8,8 @@ on:
       - "ml_service/**"
       - "producer_service/**"
       - "notification_service/**"
+      
+  workflow_dispatch:
 
 jobs:
   define-tag:
