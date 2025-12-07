@@ -4,19 +4,21 @@ This service exposes an endpoint to accept review text from authenticated users
 and sends the data to the Kafka topic `raw_reviews` for downstream ML processing.
 """
 
+import os
 from fastapi import FastAPI, Depends
 from schemas import ReviewRequest
 from kafka_producer import send_to_kafka, get_kafka_producer, producer
 from security import get_current_user
 import logging
+from typing import Dict
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    root_path="/producer",
+    root_path=os.getenv("ROOT_PATH", ""),
     title="Producer Service",
-    docs_url="/producer/docs",
+    docs_url="/docs",
     openapi_url="/openapi.json",
 )
 
@@ -25,6 +27,12 @@ app = FastAPI(
 async def startup_event() -> None:
     """Initialize Kafka producer at application startup."""
     await get_kafka_producer()
+
+
+@app.get("/health")
+async def health() -> Dict[str, str]:
+    """Health check endpoint returning the service status."""
+    return {"status": "ok"}
 
 
 @app.on_event("shutdown")

@@ -171,9 +171,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    root_path="/notification",
+    root_path=os.getenv("ROOT_PATH", ""),
     title="Notify Service",
-    docs_url="/notification/docs",
+    docs_url="/docs",
     openapi_url="/openapi.json",
     lifespan=lifespan,
 )

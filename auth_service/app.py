@@ -14,9 +14,11 @@ check, password hashing, and token creation.
 
 from __future__ import annotations
 
+import os
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from typing import Dict
 
 from database import get_db
 from models import User
@@ -27,7 +29,9 @@ from security import (
     verify_password,
 )
 
-app = FastAPI(root_path="/auth", docs_url="/auth/docs", openapi_url="/openapi.json")
+app = FastAPI(
+    root_path=os.getenv("ROOT_PATH", ""), docs_url="/docs", openapi_url="/openapi.json"
+)
 
 
 @app.post("/register/")
@@ -68,3 +72,9 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)) -> Token:
 
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/health")
+async def health() -> Dict[str, str]:
+    """Health check endpoint returning the service status."""
+    return {"status": "ok"}

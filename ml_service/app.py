@@ -54,14 +54,17 @@ def _load_model_sync(model_name: str) -> Any:
     )
 
 
-async def load_model_async(model_name: str) -> Any:
+async def load_model_async() -> None:
     """Load the transformer model asynchronously using a thread executor.
 
     Loading heavy model artifacts is performed in a background thread to avoid
     blocking the event loop during application startup.
     """
+    global sentiment_pipeline
+    logger.info("Loading model in background...")
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _load_model_sync, model_name)
+    sentiment_pipeline = await loop.run_in_executor(None, _load_model_sync, MODEL_NAME)
+    logger.info("Model loaded successfully.")
 
 
 def _select_top_label_from_scores(scores: Any) -> Dict[str, float]:
@@ -88,6 +91,7 @@ async def get_kafka_producer_with_retry(
     retries: int = 5, delay: int = 2
 ) -> AIOKafkaProducer:
     """Create and start an AIOKafkaProducer with retries."""
+    global producer
     for attempt in range(1, retries + 1):
         try:
             prod = AIOKafkaProducer(
@@ -95,14 +99,19 @@ async def get_kafka_producer_with_retry(
                 value_serializer=lambda v: json.dumps(v).encode("utf-8"),
             )
             await prod.start()
+            producer = prod
             logger.info("Kafka Producer connected.")
-            return prod
+            return
         except Exception as exc:
             logger.warning(
-                "Kafka connection failed (attempt %d/%d): %s", attempt, retries, exc
+                "Kafka connection failed (%d/%d): %s",
+                attempt,
+                retries,
+                exc,
             )
             await asyncio.sleep(delay)
-    raise ConnectionError("Could not connect to Kafka after retries")
+
+    logger.error("Kafka producer FAILED to connect.")
 
 
 async def process_message(msg_value: bytes) -> None:
@@ -172,15 +181,8 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.error("DB Init failed: %s", exc)
 
-    global sentiment_pipeline
-    sentiment_pipeline = await load_model_async(MODEL_NAME)
-
-    global producer
-    try:
-        producer = await get_kafka_producer_with_retry()
-    except Exception as exc:
-        logger.error("Critical Kafka Error: %s", exc)
-
+    asyncio.create_task(load_model_async())
+    asyncio.create_task(get_kafka_producer_with_retry())
     asyncio.create_task(consume_loop())
 
     yield
@@ -190,15 +192,17 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    root_path="/ml",
+    root_path=os.getenv("ROOT_PATH", ""),
     title="ML Service",
     lifespan=lifespan,
-    docs_url="/ml/docs",
+    docs_url="/docs",
     openapi_url="/openapi.json",
 )
 
 
 @app.get("/health")
-async def health_check() -> Dict[str, str]:
-    status = "alive" if sentiment_pipeline else "loading_model"
-    return {"status": status}
+async def health():
+    return {
+        "model": "ready" if sentiment_pipeline else "loading",
+        "kafka": "ready" if producer else "initializing",
+    }
