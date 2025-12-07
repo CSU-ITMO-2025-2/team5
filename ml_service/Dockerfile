@@ -4,12 +4,12 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-ENV MODEL_NAME=Aniemore/rubert-tiny2-russian-emotion-detection
-RUN python -c "from transformers import AutoTokenizer, AutoModelForSequenceClassification; \
-    print('Downloading model and tokenizer...'); \
-    AutoTokenizer.from_pretrained('$MODEL_NAME'); \
-    AutoModelForSequenceClassification.from_pretrained('$MODEL_NAME'); \
-    print('Model cache created.');"
+# ENV MODEL_NAME=Aniemore/rubert-tiny2-russian-emotion-detection
+# RUN python -c "from transformers import AutoTokenizer, AutoModelForSequenceClassification; \
+#     print('Downloading model and tokenizer...'); \
+#     AutoTokenizer.from_pretrained('$MODEL_NAME'); \
+#     AutoModelForSequenceClassification.from_pretrained('$MODEL_NAME'); \
+#     print('Model cache created.');"
 
 COPY . .
 

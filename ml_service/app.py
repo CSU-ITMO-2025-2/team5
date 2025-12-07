@@ -9,6 +9,7 @@ classification).
 
 from __future__ import annotations
 
+import random
 import asyncio
 import json
 import logging
@@ -18,7 +19,8 @@ from typing import Any, Dict, Optional
 
 from fastapi import FastAPI
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-from transformers import pipeline
+
+# from transformers import pipeline
 from database import engine, AsyncSessionLocal
 from db_core import Base
 from models import ReviewResult
@@ -37,32 +39,34 @@ MODEL_NAME = os.getenv("MODEL_NAME", "Aniemore/rubert-tiny2-russian-emotion-dete
 producer: Optional[AIOKafkaProducer] = None
 sentiment_pipeline: Optional[Any] = None
 
-
-def _load_model_sync(model_name: str) -> Any:
-    """Synchronous model loader used inside a thread pool.
-
-    The function uses the Transformers pipeline for text classification and
-    requests all scores to support multi-label outputs.
-    """
-    return pipeline(
-        "text-classification",
-        model=model_name,
-        tokenizer=model_name,
-        return_all_scores=True,
-    )
+EMOTIONS = ["neutral", "happiness", "sadness", "enthusiasm", "fear", "anger", "disgust"]
 
 
-async def load_model_async() -> None:
-    """Load the transformer model asynchronously using a thread executor.
+# def _load_model_sync(model_name: str) -> Any:
+#     """Synchronous model loader used inside a thread pool.
 
-    Loading heavy model artifacts is performed in a background thread to avoid
-    blocking the event loop during application startup.
-    """
-    global sentiment_pipeline
-    logger.info("Loading model in background...")
-    loop = asyncio.get_running_loop()
-    sentiment_pipeline = await loop.run_in_executor(None, _load_model_sync, MODEL_NAME)
-    logger.info("Model loaded successfully.")
+#     The function uses the Transformers pipeline for text classification and
+#     requests all scores to support multi-label outputs.
+#     """
+#     return pipeline(
+#         "text-classification",
+#         model=model_name,
+#         tokenizer=model_name,
+#         return_all_scores=True,
+#     )
+
+
+# async def load_model_async() -> None:
+#     """Load the transformer model asynchronously using a thread executor.
+
+#     Loading heavy model artifacts is performed in a background thread to avoid
+#     blocking the event loop during application startup.
+#     """
+#     global sentiment_pipeline
+#     logger.info("Loading model in background...")
+#     loop = asyncio.get_running_loop()
+#     sentiment_pipeline = await loop.run_in_executor(None, _load_model_sync, MODEL_NAME)
+#     logger.info("Model loaded successfully.")
 
 
 def _select_top_label_from_scores(scores: Any) -> Dict[str, float]:
@@ -119,13 +123,15 @@ async def process_message(msg_value: bytes) -> None:
         review_text = data.get("text", "")
         review_id = data.get("id")
 
-        loop = asyncio.get_running_loop()
-        sentiment_raw = await loop.run_in_executor(
-            None, sentiment_pipeline, review_text
-        )
+        # loop = asyncio.get_running_loop()
+        # sentiment_raw = await loop.run_in_executor(
+        #     None, sentiment_pipeline, review_text
+        # )
 
-        top = _select_top_label_from_scores(sentiment_raw)
-        sentiment, score = next(iter(top.items()))
+        # top = _select_top_label_from_scores(sentiment_raw)
+        # sentiment, score = next(iter(top.items()))
+        sentiment = random.choice(EMOTIONS)
+        score = 0.85
 
         async with AsyncSessionLocal() as session:
             new_review = ReviewResult(
@@ -179,7 +185,7 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.error("DB Init failed: %s", exc)
 
-    asyncio.create_task(load_model_async())
+    # asyncio.create_task(load_model_async())
     asyncio.create_task(get_kafka_producer_with_retry())
     asyncio.create_task(consume_loop())
 
