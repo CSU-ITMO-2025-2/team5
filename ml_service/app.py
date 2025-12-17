@@ -125,7 +125,7 @@ def _extract_from_attributes(resp: Any) -> Optional[str]:
     """Extract text from response object with text/type attributes."""
     if not hasattr(resp, "text"):
         return None
-    
+
     text = getattr(resp, "text")
     if hasattr(resp, "type"):
         if text and isinstance(text, str):
@@ -135,7 +135,7 @@ def _extract_from_attributes(resp: Any) -> Optional[str]:
         return ""
     if text and isinstance(text, str):
         return text
-    
+
     return None
 
 
@@ -144,27 +144,27 @@ def _extract_from_output(resp: Any) -> Optional[str]:
     output = getattr(resp, "output", None)
     if not output or not isinstance(output, (list, tuple)) or len(output) == 0:
         return None
-    
+
     first_item = output[0]
     content = None
-    
+
     if isinstance(first_item, dict):
         content = first_item.get("content")
     elif hasattr(first_item, "content"):
         content = getattr(first_item, "content", None)
-    
+
     if not content or not isinstance(content, (list, tuple)) or len(content) == 0:
         return None
-    
+
     candidate = content[0]
-    
+
     if isinstance(candidate, dict):
         return candidate.get("text", "")
     elif isinstance(candidate, str):
         return candidate
     elif hasattr(candidate, "text"):
         return getattr(candidate, "text", "")
-    
+
     return str(candidate) if candidate else None
 
 
