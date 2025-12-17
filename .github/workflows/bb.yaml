@@ -68,6 +68,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ needs.define-tag.outputs.owner_lc }}/team5-${{ matrix.service.name }}:${{ needs.define-tag.outputs.image_tag }}
+            ghcr.io/${{ needs.define-tag.outputs.owner_lc }}/team5-${{ matrix.service.name }}:latest
 
           cache-from: type=registry,ref=ghcr.io/${{ needs.define-tag.outputs.owner_lc }}/team5-${{ matrix.service.name }}:cache
           cache-to: type=registry,ref=ghcr.io/${{ needs.define-tag.outputs.owner_lc }}/team5-${{ matrix.service.name }}:cache,mode=max

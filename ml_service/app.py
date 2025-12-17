@@ -9,18 +9,21 @@ classification).
 
 from __future__ import annotations
 
+import inspect
 import random
 import asyncio
 import json
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI
+from openai import OpenAI
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
-# from transformers import pipeline
+from pathlib import Path
 from database import engine, AsyncSessionLocal
 from db_core import Base
 from models import ReviewResult
@@ -34,59 +37,32 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv(
 )
 TOPIC_RAW = os.getenv("KAFKA_TOPIC_RAW", "raw_reviews")
 TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed_reviews")
-MODEL_NAME = os.getenv("MODEL_NAME", "Aniemore/rubert-tiny2-russian-emotion-detection")
 
+OPENAI_API_KEY = os.getenv("API_KEY")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.proxyapi.ru/openai/v1")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+
+openai_client: Optional[OpenAI] = None
 producer: Optional[AIOKafkaProducer] = None
 sentiment_pipeline: Optional[Any] = None
 
 EMOTIONS = ["neutral", "happiness", "sadness", "enthusiasm", "fear", "anger", "disgust"]
+_PROMPT_CACHE: dict[str, str] = {}
 
 
-# def _load_model_sync(model_name: str) -> Any:
-#     """Synchronous model loader used inside a thread pool.
+def load_prompt(name: str) -> str:
+    if name in _PROMPT_CACHE:
+        return _PROMPT_CACHE[name]
 
-#     The function uses the Transformers pipeline for text classification and
-#     requests all scores to support multi-label outputs.
-#     """
-#     return pipeline(
-#         "text-classification",
-#         model=model_name,
-#         tokenizer=model_name,
-#         return_all_scores=True,
-#     )
+    base_dir = Path(__file__).resolve().parent
+    prompt_path = base_dir / "prompts" / name
 
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
 
-# async def load_model_async() -> None:
-#     """Load the transformer model asynchronously using a thread executor.
-
-#     Loading heavy model artifacts is performed in a background thread to avoid
-#     blocking the event loop during application startup.
-#     """
-#     global sentiment_pipeline
-#     logger.info("Loading model in background...")
-#     loop = asyncio.get_running_loop()
-#     sentiment_pipeline = await loop.run_in_executor(None, _load_model_sync, MODEL_NAME)
-#     logger.info("Model loaded successfully.")
-
-
-def _select_top_label_from_scores(scores: Any) -> Dict[str, float]:
-    """Convert pipeline scores into a label->score mapping and select top.
-
-    The transformers pipeline returns a list of dicts when ``return_all_scores``
-    is enabled. This helper normalizes that output into a mapping and returns
-    the label with the maximum score.
-    """
-    if not scores:
-        return {"neutral": 0.0}
-
-    if isinstance(scores, list) and len(scores) and isinstance(scores[0], list):
-        entries = scores[0]
-    else:
-        entries = scores
-
-    label_scores = {entry["label"].lower(): float(entry["score"]) for entry in entries}
-    top_label = max(label_scores, key=label_scores.get)
-    return {top_label: label_scores[top_label]}
+    content = prompt_path.read_text(encoding="utf-8")
+    _PROMPT_CACHE[name] = content
+    return content
 
 
 async def get_kafka_producer_with_retry(
@@ -116,46 +92,259 @@ async def get_kafka_producer_with_retry(
     logger.error("Kafka producer FAILED to connect.")
 
 
+def init_openai_client() -> bool:
+    """Initialize OpenAI client"""
+    global openai_client
+    if OPENAI_API_KEY:
+        openai_client = OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url=OPENAI_BASE_URL,
+        )
+        logger.info("OpenAI client initialized")
+        return True
+    else:
+        logger.warning("API_KEY not set, OpenAI disabled")
+        return False
+
+
+def _extract_text_from_response(resp: Any) -> str:
+    """Extract text from various response object formats."""
+    text = _extract_from_attributes(resp)
+    if text:
+        return text.strip()
+    text = _extract_from_output(resp)
+    if text:
+        return text.strip()
+    text = _extract_from_text_or_raw_text(resp)
+    if text:
+        return str(text).strip()
+    return _extract_fallback(resp).strip()
+
+
+def _extract_from_attributes(resp: Any) -> Optional[str]:
+    """Extract text from response object with text/type attributes."""
+    if not hasattr(resp, "text"):
+        return None
+    
+    text = getattr(resp, "text")
+    if hasattr(resp, "type"):
+        if text and isinstance(text, str):
+            return text
+        elif text:
+            return str(text)
+        return ""
+    if text and isinstance(text, str):
+        return text
+    
+    return None
+
+
+def _extract_from_output(resp: Any) -> Optional[str]:
+    """Extract text from response object with output attribute."""
+    output = getattr(resp, "output", None)
+    if not output or not isinstance(output, (list, tuple)) or len(output) == 0:
+        return None
+    
+    first_item = output[0]
+    content = None
+    
+    if isinstance(first_item, dict):
+        content = first_item.get("content")
+    elif hasattr(first_item, "content"):
+        content = getattr(first_item, "content", None)
+    
+    if not content or not isinstance(content, (list, tuple)) or len(content) == 0:
+        return None
+    
+    candidate = content[0]
+    
+    if isinstance(candidate, dict):
+        return candidate.get("text", "")
+    elif isinstance(candidate, str):
+        return candidate
+    elif hasattr(candidate, "text"):
+        return getattr(candidate, "text", "")
+    
+    return str(candidate) if candidate else None
+
+
+def _extract_from_text_or_raw_text(resp: Any) -> Optional[str]:
+    """Extract text from text or raw_text attributes."""
+    text = getattr(resp, "text", None) or getattr(resp, "raw_text", None)
+    return str(text) if text else None
+
+
+def _extract_fallback(resp: Any) -> str:
+    """Fallback extraction methods."""
+    try:
+        return json.dumps(resp)
+    except Exception:
+        return str(resp)
+
+
+def _get_openai_create_method():
+    """Get the appropriate create method from OpenAI client."""
+    if not openai_client:
+        raise RuntimeError("OpenAI client not initialized")
+
+    create = getattr(openai_client.responses, "create", None)
+    if create is None:
+        create = getattr(openai_client, "create", None)
+    if create is None:
+        raise RuntimeError("Cannot find .responses.create or .create on OpenAI client")
+
+    return create
+
+
+async def _make_openai_call(create_method, prompt: str, timeout: float = 15.0) -> Any:
+    """Make the actual OpenAI API call."""
+    if inspect.iscoroutinefunction(create_method):
+        coro = create_method(model=OPENAI_MODEL, input=prompt)
+        return await asyncio.wait_for(coro, timeout=timeout)
+    else:
+        return await asyncio.wait_for(
+            asyncio.to_thread(create_method, model=OPENAI_MODEL, input=prompt),
+            timeout=timeout,
+        )
+
+
+async def _call_openai(prompt: str, timeout: Optional[float] = 15.0) -> str:
+    """
+    Robust wrapper that calls the OpenAI client and returns a textual response.
+    """
+    try:
+        create_method = _get_openai_create_method()
+        resp = await _make_openai_call(create_method, prompt, timeout)
+        return _extract_text_from_response(resp)
+    except Exception as exc:
+        logger.exception("OpenAI call failed: %s", exc)
+        raise
+
+
+def _extract_json_from_text(raw_text: str) -> dict[str, Any]:
+    """Extract JSON from raw text response."""
+    try:
+        return json.loads(raw_text)
+    except json.JSONDecodeError:
+        pass
+    json_pattern = r"\{[^{}]*\}"
+    matches = re.findall(json_pattern, raw_text, re.DOTALL)
+
+    if not matches:
+        raise ValueError("No JSON found in OpenAI response")
+    matches.sort(key=len, reverse=True)
+
+    for json_str in matches:
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            json_str_fixed = re.sub(r"([{,]\s*)(\w+)(\s*:)", r'\1"\2"\3', json_str)
+            try:
+                return json.loads(json_str_fixed)
+            except json.JSONDecodeError:
+                continue
+
+    raise ValueError("Cannot parse any JSON from OpenAI response")
+
+
+def _validate_and_normalize_result(parsed: dict[str, Any]) -> tuple[str, float, str]:
+    """Validate and normalize parsed result."""
+    label = parsed.get("label", "")
+    raw_score = parsed.get("score", 0.0)
+    reply = parsed.get("reply", "")
+
+    if not isinstance(label, str) or label.lower() not in EMOTIONS:
+        raise ValueError(f"Invalid label from OpenAI: {label!r}")
+
+    try:
+        score = float(raw_score)
+    except (ValueError, TypeError):
+        score = 0.0
+
+    score = max(0.0, min(1.0, score))
+    reply = str(reply).strip()
+
+    return label.lower(), score, reply
+
+
+async def analyze_with_openai(text: str, username: str) -> tuple[str, float, str]:
+    """
+    Build prompt (from file), call OpenAI via _call_openai and parse JSON.
+    Returns (label, score, reply).
+    Raises if parsing fails — caller should fallback.
+    """
+    template = load_prompt("review_emotion_and_reply.txt")
+
+    prompt = (
+        template.replace("{{INPUT}}", text.replace('"', '\\"'))
+        .replace("{{USER_NAME}}", username.replace('"', '\\"'))
+        .replace("{{EMOTIONS}}", ", ".join(EMOTIONS))
+    )
+
+    raw = await _call_openai(prompt)
+    if hasattr(raw, "text"):
+        raw = raw.text
+    raw = (raw or "").strip()
+    logger.info("Raw response (first 2000 chars): %s", raw[:2000])
+
+    try:
+        parsed = _extract_json_from_text(raw)
+        logger.debug("Successfully parsed JSON")
+        return _validate_and_normalize_result(parsed)
+    except Exception as e:
+        logger.error(f"Failed to parse OpenAI response: {e}")
+        raise ValueError(f"Cannot parse OpenAI response: {e}")
+
+
 async def process_message(msg_value: bytes) -> None:
-    """Process a single Kafka message: run inference, persist and forward result."""
     try:
         data = json.loads(msg_value.decode("utf-8"))
         review_text = data.get("text", "")
         review_id = data.get("id")
+        username = data.get("username") or "Customer"
 
-        # loop = asyncio.get_running_loop()
-        # sentiment_raw = await loop.run_in_executor(
-        #     None, sentiment_pipeline, review_text
-        # )
-
-        # top = _select_top_label_from_scores(sentiment_raw)
-        # sentiment, score = next(iter(top.items()))
-        sentiment = random.choice(EMOTIONS)
-        score = 0.85
+        try:
+            sentiment, score, reply = await analyze_with_openai(review_text, username)
+        except Exception as e:
+            logger.error(
+                f"OpenAI analysis failed for review {review_id}: {str(e)}",
+                exc_info=True,
+            )
+            sentiment = random.choice(EMOTIONS)
+            score = 0.85
+            reply = (
+                f"Здравствуйте, {username}! Спасибо за обратную связь. "
+                "Мы благодарим вас за то, что поделились своим мнением."
+            )
 
         async with AsyncSessionLocal() as session:
             new_review = ReviewResult(
                 review_id=review_id,
                 review_text=review_text,
                 sentiment=sentiment,
-                polarity=str(round(score, 4)),
-                author=data.get("username", "anonymous"),
+                score=round(score, 4),
+                reply=reply,
+                author=username,
             )
             session.add(new_review)
             await session.commit()
+            await session.refresh(new_review)
 
         if producer:
             processed_data = {
                 "review_id": review_id,
                 "sentiment": sentiment,
-                "user": data.get("username"),
+                "score": round(score, 4),
+                "reply": reply,
+                "user": username,
                 "text": review_text,
+                "created_at": new_review.created_at.isoformat(),
             }
             await producer.send_and_wait(TOPIC_PROCESSED, processed_data)
 
-        logger.info("Analyzed review %s: %s (score: %.2f)", review_id, sentiment, score)
+        logger.info("Analyzed review %s: %s", review_id, sentiment)
     except Exception as exc:
-        logger.error("Error processing message: %s", exc)
+        logger.error("Error processing message: %s", exc, exc_info=True)
 
 
 async def consume_loop() -> None:
@@ -166,7 +355,6 @@ async def consume_loop() -> None:
                 TOPIC_RAW,
                 bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
                 group_id="ml-service-group",
-                auto_offset_reset="earliest",
             )
             await consumer.start()
             logger.info("ML Consumer started.")
@@ -185,8 +373,9 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.error("DB Init failed: %s", exc)
 
-    # asyncio.create_task(load_model_async())
-    asyncio.create_task(get_kafka_producer_with_retry())
+    init_openai_client()
+    await get_kafka_producer_with_retry()
+    await asyncio.sleep(1)
     asyncio.create_task(consume_loop())
 
     yield

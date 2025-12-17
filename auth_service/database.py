@@ -14,9 +14,7 @@ from typing import AsyncGenerator, Optional
 from sqlalchemy import orm
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from dotenv import load_dotenv
 
-load_dotenv()
 
 DATABASE_ENV_KEY = "DATABASE_URL"
 database_url: Optional[str] = os.getenv(DATABASE_ENV_KEY)

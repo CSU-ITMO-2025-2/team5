@@ -1,3 +1,4 @@
+# pylint: disable=no-member,wrong-import-position
 """Alembic environment configuration for the auth_service.
 
 This module configures Alembic to run migrations in both offline and online

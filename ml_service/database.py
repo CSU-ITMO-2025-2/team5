@@ -1,24 +1,16 @@
-"""Async SQLAlchemy engine and session factory for ml_service."""
-
-from __future__ import annotations
+"""Async SQLAlchemy engine and session factory for the application."""
 
 import os
-from typing import Optional
-
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-
-ENV_DATABASE = "DATABASE_URL"
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 
-database_url: Optional[str] = os.getenv(ENV_DATABASE)
-if not database_url:
-    raise ValueError(f"{ENV_DATABASE} is not set in the environment variables")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL environment variable is not set!")
 
-engine = create_async_engine(database_url, echo=False)
+engine = create_async_engine(DATABASE_URL, echo=False)
 
-AsyncSessionLocal: sessionmaker = sessionmaker(
+AsyncSessionLocal = async_sessionmaker(
     bind=engine,
-    class_=AsyncSession,
     expire_on_commit=False,
 )

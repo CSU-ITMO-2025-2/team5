@@ -1,7 +1,12 @@
-"""Declarative base for ORM models used in ml_service."""
+"""Declarative base for all ORM models."""
 
-from __future__ import annotations
-
+from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import declarative_base
 
-Base = declarative_base()
+
+class Base(AsyncAttrs, declarative_base()):
+    """
+    Абстрактный базовый класс для всех ORM-моделей.
+    """
+
+    __abstract__ = True

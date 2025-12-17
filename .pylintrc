@@ -1,6 +1,8 @@
 ﻿[MASTER]
 load-plugins=pylint.extensions.mccabe
 jobs=4
+ignore=alembic,__pycache__,.venv,.env
+ignore-patterns=alembic/*,__pycache__/*,.venv/*,.env/*
 
 [MESSAGES CONTROL]
 disable=

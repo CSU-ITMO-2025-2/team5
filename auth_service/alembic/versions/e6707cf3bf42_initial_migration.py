@@ -1,3 +1,4 @@
+# pylint: disable=no-member,wrong-import-position
 """Initial Alembic migration: create ``users`` table and related indexes.
 
 Revision ID: e6707cf3bf42

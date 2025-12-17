@@ -6,3 +6,8 @@ pydantic_core==2.41.5
 typing_extensions==4.15.0
 httpx==0.27.0
 python-dotenv==1.2.1
+aiogram
+aiosqlite
+python-dateutil
+sqlalchemy[asyncio]
+asyncpg

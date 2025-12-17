@@ -21,6 +21,12 @@ from fastapi import FastAPI
 from aiokafka import AIOKafkaConsumer
 import httpx
 
+from datetime import datetime
+from dateutil import parser
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import CommandStart
+from db import init_db, add_subscriber, get_all_subscribers
+
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -31,12 +37,23 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv(
 TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed_reviews")
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 TELEGRAM_API_URL = (
     f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     if TELEGRAM_BOT_TOKEN
     else None
 )
+
+
+bot = Bot(token=TELEGRAM_BOT_TOKEN) if TELEGRAM_BOT_TOKEN else None
+dp = Dispatcher()
+
+
+@dp.message(CommandStart())
+async def handle_start(message: types.Message):
+    """Handles new users starting a chat with the bot."""
+    chat_id = message.chat.id
+    await add_subscriber(chat_id)
+    await message.answer("Вы успешно подписались на уведомления о sentiment-анализе!")
 
 
 def _load_json_mapping(file_path: str) -> Dict[str, str]:
@@ -65,33 +82,35 @@ EMOTION_MAPPING = _load_json_mapping("mapping/emotion_to_sentiment.json")
 EMOTION_TRANSLATE = _load_json_mapping("mapping/emotion_to_russian.json")
 
 
-async def _send_telegram(message: str) -> None:
-    """Send a Markdown-formatted message to the configured Telegram chat.
-
-    If the bot token or chat id is not configured the function logs a warning
-    and returns silently.
-    """
-    if not TELEGRAM_API_URL or not TELEGRAM_CHAT_ID:
-        logger.warning(
-            "Telegram token or chat id not configured; skipping notification"
-        )
+async def _send_telegram(chat_id: int, message: str) -> None:
+    """Send a Markdown-formatted message to a specific Telegram chat_id."""
+    if not TELEGRAM_API_URL:
         return
 
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
+    payload = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(TELEGRAM_API_URL, json=payload, timeout=5)
-            resp.raise_for_status()
-            logger.info("Telegram notification sent (status=%s)", resp.status_code)
+            if resp.is_success:
+                logger.debug(
+                    "Telegram notification sent to %s (status=%s)",
+                    chat_id,
+                    resp.status_code,
+                )
+            else:
+                resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
         logger.error(
-            "Telegram HTTP error: %s - %s", exc.response.status_code, exc.response.text
+            "Telegram HTTP error for chat_id %s: %s - %s",
+            chat_id,
+            exc.response.status_code,
+            exc.response.text,
         )
     except Exception as exc:
-        logger.error("Failed to send telegram message: %s", exc)
+        logger.error("Failed to send telegram message to %s: %s", chat_id, exc)
 
 
-async def process_message(msg_value: bytes) -> None:
+def process_message(msg_value: bytes) -> str | None:
     """Process a single Kafka message and send a Telegram notification if required.
 
     The function maps the model emotion to a sentiment and a Russian label,
@@ -102,12 +121,23 @@ async def process_message(msg_value: bytes) -> None:
         payload = json.loads(msg_value.decode("utf-8"))
     except Exception as exc:
         logger.error("Failed to decode message: %s", exc)
-        return
+        return None
 
     review_id = payload.get("review_id")
     user = payload.get("user") or "Anonymous"
     emotion = payload.get("sentiment") or "neutral"
     text = payload.get("text") or ""
+    reply_template = payload.get("reply") or "Нет рекомендации"
+
+    created_at_str = payload.get("created_at")
+    created_at_formatted = "-"
+    if created_at_str:
+        try:
+            dt_object = parser.isoparse(created_at_str)
+            created_at_formatted = dt_object.strftime("%Y-%m-%d %H:%M:%S")
+        except (ValueError, TypeError):
+            logger.warning("Could not parse created_at: %s", created_at_str)
+            created_at_formatted = created_at_str
 
     sentiment = EMOTION_MAPPING.get(emotion, "нейтральная")
     emotion_ru = EMOTION_TRANSLATE.get(emotion, emotion)
@@ -128,46 +158,104 @@ async def process_message(msg_value: bytes) -> None:
         short_id = "-"
 
     message = (
-        f"{emoji} *NEW REVIEW ALERT* {emoji}\n"
-        f"User: `{user}`\n"
-        f"ID: `{short_id}`\n"
-        f"Message: `{text}`\n"
-        f"Emotion: **{emotion_ru.upper()}**"
+        f"{emoji} *НОВЫЙ ОТЗЫВ* {emoji}\n"
+        f"Пользователь: `{user}`\n"
+        f"ID отзыва: `{short_id}`\n"
+        f"Создан: `{created_at_formatted}`\n"
+        f"Отзыв: `{text}`\n"
+        f"Эмоция: **{emotion_ru.upper()}**\n"
+        f"Рекомендуемый ответ:\n`{reply_template}`"
     )
 
-    await _send_telegram(message)
+    return message
 
 
 async def _consume_loop() -> None:
-    """Continuously consume messages from Kafka and process them."""
+    """Continuously consume messages from Kafka and broadcast them to subscribers."""
     while True:
+        consumer = None
         try:
             consumer = AIOKafkaConsumer(
                 TOPIC_PROCESSED,
                 bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
                 group_id="notification-group",
-                auto_offset_reset="latest",
+                auto_offset_reset="earliest",
             )
             await consumer.start()
-            logger.info("Notification consumer started")
+            logger.info("Notification consumer started. Waiting for messages...")
+
             async for msg in consumer:
-                await process_message(msg.value)
+                logger.info(
+                    f"Received message from Kafka: offset={msg.offset}, value={msg.value}"
+                )
+
+                message_text = None
+                try:
+                    message_text = process_message(msg.value)
+                    logger.info(f"Processed message content: '{message_text}'")
+                except Exception as e:
+                    logger.error(
+                        f"Failed to process message with offset {msg.offset}: {e}",
+                        exc_info=True,
+                    )
+                    continue
+                if not message_text:
+                    logger.warning(
+                        f"Message with offset {msg.offset} resulted in empty text. Skipping."
+                    )
+                    continue
+                subscribers = await get_all_subscribers()
+                logger.info(f"Found {len(subscribers)} subscribers.")
+                if not subscribers:
+                    logger.warning(
+                        "No subscribers to send notification to. Skipping broadcast."
+                    )
+                    continue
+
+                logger.info("Broadcasting message to %d subscribers", len(subscribers))
+                tasks = [
+                    _send_telegram(chat_id, message_text) for chat_id in subscribers
+                ]
+                await asyncio.gather(*tasks)
+                logger.info("Broadcast finished successfully.")
+
         except Exception as exc:
-            logger.error("Consumer crashed: %s. Retrying in 5s...", exc)
+            logger.error("Consumer CRASHED: %s. Retrying in 5s...", exc, exc_info=True)
+            if consumer:
+                await consumer.stop()
             await asyncio.sleep(5)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    task = asyncio.create_task(_consume_loop())
+    """Manages the startup and shutdown of background tasks."""
+    await init_db()
+
+    consumer_task = asyncio.create_task(_consume_loop())
+
+    polling_task = None
+    if bot:
+        polling_task = asyncio.create_task(dp.start_polling(bot))
+        logger.info("Telegram bot polling started")
+
     try:
         yield
     finally:
-        task.cancel()
+        consumer_task.cancel()
+        if polling_task:
+            await dp.storage.close()
+            await bot.session.close()
+            polling_task.cancel()
+
         try:
-            await task
+            await consumer_task
         except asyncio.CancelledError:
             logger.info("Notification consumer task cancelled")
+        if polling_task:
+            try:
+                await polling_task
+            except asyncio.CancelledError:
+                logger.info("Telegram polling task cancelled")
 
 
 app = FastAPI(

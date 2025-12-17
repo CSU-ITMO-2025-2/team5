@@ -9,6 +9,8 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_SERVER_ID: 1
       ZOOKEEPER_SERVERS: zoo1:2888:3888
+    env_file:
+      - .env
     networks:
       - mynetwork
 
@@ -20,13 +22,17 @@ services:
       - "9092:9092"
       - "29092:29092"
     environment:
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka1:19092,EXTERNAL://localhost:9092,DOCKER://kafka1:29092
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,DOCKER:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_INTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka1:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_ZOOKEEPER_CONNECT: "zoo1:2181"
       KAFKA_BROKER_ID: 1
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    env_file:
+      - .env
     depends_on:
       - zoo1
     networks:
@@ -39,6 +45,8 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
       POSTGRES_DB: main_db
+    env_file:
+      - .env
     ports:
       - "5432:5432"
     networks:
@@ -52,10 +60,12 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+    env_file:
+      - .env
     ports:
       - "9090:9090"
     depends_on:
-      - ml_service 
+      - ml_service
     networks:
       - mynetwork
 
@@ -65,17 +75,23 @@ services:
     ports:
       - "3000:3000"
     user: "0"
+    env_file:
+      - .env
     depends_on:
       - prometheus
     networks:
       - mynetwork
-      
+
   auth_service:
     build:
       context: ./auth_service
     container_name: auth_service
     ports:
       - "8000:8000"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092
+    env_file:
+      - .env
     depends_on:
       - kafka1
       - postgres
@@ -89,7 +105,9 @@ services:
     ports:
       - "5050:5050"
     environment:
-      KAFKA_SERVERS: kafka1:29092
+      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092
+    env_file:
+      - .env
     depends_on:
       - kafka1
     networks:
@@ -102,8 +120,9 @@ services:
     ports:
       - "7070:7070"
     environment:
-      DATABASE_URL: postgresql+asyncpg://user:password@postgres:5432/main_db
-      KAFKA_SERVERS: kafka1:29092
+      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092
+    env_file:
+      - .env
     depends_on:
       - kafka1
       - postgres
@@ -118,10 +137,14 @@ services:
     ports:
       - "7071:7071"
     environment:
-      KAFKA_SERVERS: kafka1:29092
+      KAFKA_BOOTSTRAP_SERVERS: kafka1:29092
+      KAFKA_TOPIC_PROCESSED: processed_reviews
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    env_file:
+      - .env
     depends_on:
       - kafka1
-      - ml_service
+      - postgres
     networks:
       - mynetwork
 
