@@ -403,6 +403,7 @@ async def health():
     }
 
 
+@app.get("/reviews/{review_id}")
 async def get_review_result(
     review_id: str, username: str = Depends(get_current_user)
 ) -> Dict[str, Any]:
