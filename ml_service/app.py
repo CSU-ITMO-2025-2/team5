@@ -17,9 +17,10 @@ import logging
 import os
 import re
 from contextlib import asynccontextmanager
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy import select
 from openai import OpenAI
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
@@ -27,6 +28,7 @@ from pathlib import Path
 from database import engine, AsyncSessionLocal
 from db_core import Base
 from models import ReviewResult
+from security import get_current_user
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -399,3 +401,22 @@ async def health():
         "model": "ready" if sentiment_pipeline else "loading",
         "kafka": "ready" if producer else "initializing",
     }
+
+
+async def get_review_result(
+    review_id: str, username: str = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Return stored ML result or processing status for the given review_id."""
+    async with AsyncSessionLocal() as session:
+        stmt = select(ReviewResult).where(ReviewResult.review_id == review_id)
+        stmt = select(ReviewResult).where(
+            ReviewResult.review_id == review_id,
+            ReviewResult.author == username,
+        )
+        result = await session.execute(stmt)
+        review: Optional[ReviewResult] = result.scalar_one_or_none()
+
+        if review is None:
+            raise HTTPException(status_code=404, detail="Review result not found")
+
+        return review.to_dict()
