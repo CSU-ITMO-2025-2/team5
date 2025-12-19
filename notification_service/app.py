@@ -35,7 +35,11 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv(
     "KAFKA_BOOTSTRAP_SERVERS",
     "my-cluster-kafka-bootstrap.team5-ns.svc.cluster.local:9092",
 )
-TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed_reviews")
+TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed-reviews")
+
+KAFKA_USERNAME = os.getenv("KAFKA_USERNAME")
+KAFKA_PASSWORD = os.getenv("KAFKA_PASSWORD")
+KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID", "notification-group")
 
 KAFKA_USERNAME = os.getenv("KAFKA_USERNAME")
 KAFKA_PASSWORD = os.getenv("KAFKA_PASSWORD")
