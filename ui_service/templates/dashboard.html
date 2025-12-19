@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAN Autoresponder - Личный кабинет</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --dark-color: #0f172a;
+            --light-color: #f8fafc;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .review-form {
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+        }
+
+        .sentiment-badge {
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sentiment-positive {
+            background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+            color: #166534;
+        }
+
+        .sentiment-negative {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            color: #991b1b;
+        }
+
+        .sentiment-neutral {
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            color: #334155;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            border: none;
+            border-radius: 50px;
+            padding: 12px 30px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+            border: none;
+            border-radius: 50px;
+            padding: 12px 30px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+
+        .loading-spinner {
+            display: none;
+        }
+
+        .loading-spinner.show {
+            display: block;
+        }
+
+        .navbar-brand {
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .user-info {
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #1f2937, #64748b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .review-item {
+            background: linear-gradient(135deg, #ffffff, #f8fafc);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-comments me-2"></i>
+                SAN Autoresponder
+            </a>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user me-2"></i>
+                        <span id="usernameDisplay">Пользователь</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" id="logoutBtn">
+                            <i class="fas fa-sign-out-alt me-2"></i>
+                            Выйти
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="main-content">
+            <!-- Main Section -->
+            <div class="section">
+                <h1 class="section-title">
+                    <i class="fas fa-comments me-3"></i>
+                    Генерация ответов на отзывы
+                </h1>
+
+                <div class="card user-info mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-user me-2"></i>
+                            Добро пожаловать!
+                        </h5>
+                        <p class="card-text">
+                            Вы вошли как <strong id="userInfoUsername"></strong>.
+                            Введите текст отзыва ниже, чтобы получить автоматический ответ.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card review-form">
+                    <div class="card-body">
+                        <form id="reviewForm">
+                            <div class="mb-3">
+                                <label for="reviewText" class="form-label">Текст отзыва</label>
+                                <textarea 
+                                    class="form-control" 
+                                    id="reviewText" 
+                                    rows="6" 
+                                    placeholder="Введите текст отзыва..."
+                                    required></textarea>
+                            </div>
+                            <div class="d-flex gap-3">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-magic me-2"></i>
+                                    Сгенерировать ответ
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="sampleReviewBtn">
+                                    <i class="fas fa-file-alt me-2"></i>
+                                    Пример отзыва
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="loadingSpinner" class="text-center loading-spinner">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                            <p class="mt-3">Анализируем отзыв и генерируем ответ...</p>
+                        </div>
+
+                        <div id="resultCard" class="mt-4 d-none">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-chart-line me-2"></i>
+                                        Результат анализа
+                                    </h5>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Эмоция в отзыве</label>
+                                                <span class="sentiment-badge" id="sentimentBadge">
+                                                    <i class="fas fa-brain me-2"></i>
+                                                    <span id="sentimentText">Нейтрально</span>
+                                                </span>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Уверенность анализа</label>
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <div class="progress flex-grow-1" style="height: 20px;">
+                                                        <div class="progress-bar" id="confidenceBar" style="width: 0%"></div>
+                                                    </div>
+                                                    <span id="confidenceText">0%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">ID анализа</label>
+                                                <input type="text" class="form-control" id="reviewId" readonly>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Дата анализа</label>
+                                                <input type="text" class="form-control" id="analysisDate" readonly>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Рекомендуемый ответ</label>
+                                        <div class="alert alert-info" id="recommendedResponse">
+                                            Ваш рекомендуемый ответ появится здесь...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="errorAlert" class="alert alert-danger d-none mt-3"></div>
+                    </div>
+                </div>
+
+                <!-- History Section -->
+                <div class="section mt-4">
+                    <h2 class="section-title">
+                        <i class="fas fa-history me-3"></i>
+                        История ответов в сессии
+                    </h2>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <div id="historyList">
+                                <p class="text-muted">Пока нет сохраненных ответов в сессии. Начните анализировать отзывы, чтобы увидеть их здесь.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Auth check
+        const token = localStorage.getItem('token');
+        const username = localStorage.getItem('username');
+
+        if (!token || !username) {
+            window.location.href = '/auth';
+        }
+
+        // Set username in navbar
+        document.getElementById('usernameDisplay').textContent = username;
+        document.getElementById('userInfoUsername').textContent = username;
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            window.location.href = '/auth';
+        });
+
+        // Sample review
+        document.getElementById('sampleReviewBtn').addEventListener('click', function() {
+            const sampleReviews = [
+                "Я очень доволен покупкой! Качество отличное, доставка быстрая. Обязательно порекомендую друзьям.",
+                "Ужасное обслуживание! Заказ пришел с опозданием, да еще и поврежденным. Больше никогда не куплю здесь.",
+                "Нормально, ничего особенного. Для своей цены сойдет, но можно найти и лучше.",
+                "Превосходно! Превзошло все ожидания. Качество на высоте, персонал вежливый. Спасибо!",
+                "Очень расстроен. Товар сломался через неделю использования. Качество явно хромает."
+            ];
+            
+            document.getElementById('reviewText').value = sampleReviews[Math.floor(Math.random() * sampleReviews.length)];
+        });
+
+        // Review form submission
+        document.getElementById('reviewForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const reviewText = document.getElementById('reviewText').value;
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const resultCard = document.getElementById('resultCard');
+            const errorAlert = document.getElementById('errorAlert');
+
+            loadingSpinner.classList.add('show');
+            resultCard.classList.add('d-none');
+            errorAlert.classList.add('d-none');
+            errorAlert.textContent = '';
+
+            try {
+                const response = await fetch('/api/reviews/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ review_text: reviewText })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const reviewId = data.review_id;
+                    
+                    // Polling - check result every 2 seconds until we get a successful response
+                    console.log('Review submitted, starting polling for result...');
+                    const pollInterval = setInterval(async () => {
+                        try {
+                            console.log('Polling for review result ID:', reviewId);
+                            const response = await fetch(`/api/reviews/${reviewId}`, {
+                                headers: {
+                                    'Authorization': `Bearer ${token}`
+                                }
+                            });
+                            
+                            if (response.ok) {
+                                const resultData = await response.json();
+                                console.log('Review result received:', resultData);
+                                
+                                // Stop polling
+                                clearInterval(pollInterval);
+                                
+                                displayResult(resultData);
+                                addToHistory(resultData);
+                                loadingSpinner.classList.remove('show');
+                                resultCard.classList.remove('d-none');
+                            } else {
+                                console.log('Review not ready yet (status:', response.status, '), continuing to poll...');
+                                // Continue polling - don't stop on 404 or other errors
+                            }
+                        } catch (error) {
+                            console.log('Network error, continuing to poll...');
+                            // Continue polling on network errors
+                        }
+                    }, 2000);
+                    
+                    // Limit polling time to 30 seconds in case of error
+                    setTimeout(() => {
+                        clearInterval(pollInterval);
+                        if (resultCard.classList.contains('d-none')) {
+                            errorAlert.classList.remove('d-none');
+                            errorAlert.textContent = 'Анализ отзыва занимает больше времени, чем обычно. Пожалуйста, проверьте позже.';
+                            loadingSpinner.classList.remove('show');
+                        }
+                    }, 30000);
+                } else {
+                    throw new Error(data.detail || 'Не удалось отправить отзыв');
+                }
+            } catch (error) {
+                errorAlert.classList.remove('d-none');
+                errorAlert.textContent = 'Ошибка отправки отзыва: ' + error.message;
+                loadingSpinner.classList.remove('show');
+            }
+        });
+
+        function displayResult(data) {
+            const sentiment = data.sentiment || 'neutral';
+            const score = Math.round((data.score || 0) * 100);
+            const reviewId = data.review_id || 'N/A';
+            const createdAt = data.created_at || new Date().toISOString();
+            const reply = data.reply || 'Ответ не сгенерирован';
+
+            // Set sentiment badge
+            const sentimentBadge = document.getElementById('sentimentBadge');
+            const sentimentText = document.getElementById('sentimentText');
+
+            sentimentBadge.className = 'sentiment-badge';
+            sentimentText.textContent = getRussianSentiment(sentiment);
+
+            if (sentiment === 'happiness' || sentiment === 'enthusiasm') {
+                sentimentBadge.classList.add('sentiment-positive');
+                sentimentBadge.innerHTML = '<i class="fas fa-smile me-2"></i>' + sentimentBadge.innerHTML;
+            } else if (sentiment === 'sadness' || sentiment === 'fear' || sentiment === 'anger' || sentiment === 'disgust') {
+                sentimentBadge.classList.add('sentiment-negative');
+                sentimentBadge.innerHTML = '<i class="fas fa-frown me-2"></i>' + sentimentBadge.innerHTML;
+            } else {
+                sentimentBadge.classList.add('sentiment-neutral');
+                sentimentBadge.innerHTML = '<i class="fas fa-meh me-2"></i>' + sentimentBadge.innerHTML;
+            }
+
+            // Set confidence
+            document.getElementById('confidenceBar').style.width = score + '%';
+            document.getElementById('confidenceText').textContent = score + '%';
+
+            // Set other fields
+            document.getElementById('reviewId').value = reviewId;
+            document.getElementById('analysisDate').value = new Date(createdAt).toLocaleString();
+            document.getElementById('recommendedResponse').textContent = reply;
+        }
+
+        function addToHistory(data) {
+            const historyList = document.getElementById('historyList');
+            
+            // Clear "no reviews" message if it exists
+            if (historyList.children.length === 1 && historyList.children[0].classList.contains('text-muted')) {
+                historyList.innerHTML = '';
+            }
+
+            const historyItem = document.createElement('div');
+            historyItem.className = 'review-item';
+            historyItem.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h6 class="mb-1">Анализ от ${new Date(data.created_at).toLocaleString()}</h6>
+                        <p class="text-muted mb-2">${data.review_text.substring(0, 100)}${data.review_text.length > 100 ? '...' : ''}</p>
+                    </div>
+                    <span class="sentiment-badge ${getSentimentClass(data.sentiment)}">
+                        <i class="${getSentimentIcon(data.sentiment)} me-2"></i>
+                        ${getRussianSentiment(data.sentiment)}
+                    </span>
+                </div>
+                <div class="alert alert-info mb-0">
+                    ${data.reply}
+                </div>
+            `;
+
+            historyList.insertBefore(historyItem, historyList.firstChild);
+        }
+
+        function getRussianSentiment(sentiment) {
+            const mapping = {
+                'happiness': 'Радость',
+                'sadness': 'Грусть',
+                'anger': 'Гнев',
+                'fear': 'Страх',
+                'disgust': 'Отвращение',
+                'enthusiasm': 'Энтузиазм',
+                'neutral': 'Нейтрально'
+            };
+            return mapping[sentiment] || sentiment;
+        }
+
+        function getSentimentClass(sentiment) {
+            if (sentiment === 'happiness' || sentiment === 'enthusiasm') {
+                return 'sentiment-positive';
+            } else if (sentiment === 'sadness' || sentiment === 'fear' || sentiment === 'anger' || sentiment === 'disgust') {
+                return 'sentiment-negative';
+            } else {
+                return 'sentiment-neutral';
+            }
+        }
+
+        function getSentimentIcon(sentiment) {
+            if (sentiment === 'happiness' || sentiment === 'enthusiasm') {
+                return 'fas fa-smile';
+            } else if (sentiment === 'sadness' || sentiment === 'fear' || sentiment === 'anger' || sentiment === 'disgust') {
+                return 'fas fa-frown';
+            } else {
+                return 'fas fa-meh';
+            }
+        }
+    </script>
+</body>
+</html>

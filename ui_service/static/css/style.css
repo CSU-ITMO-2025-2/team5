@@ -1,0 +1,49 @@
+/* Custom styles for Team5 UI */
+
+:root {
+    --primary-color: #2563eb;
+    --secondary-color: #64748b;
+    --success-color: #10b981;
+    --danger-color: #ef4444;
+    --warning-color: #f59e0b;
+    --dark-color: #0f172a;
+    --light-color: #f8fafc;
+}
+
+
+/* Enhanced form styles */
+.form-control:focus {
+    box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+    border-color: #2563eb;
+}
+
+
+/* Progress bar enhancements */
+.progress {
+    height: 10px;
+    background-color: #e5e7eb;
+}
+
+.progress-bar {
+}
+
+/* Badge enhancements */
+.badge {
+}
+
+/* Alert enhancements */
+.alert {
+    border: none;
+    border-radius: 10px;
+}
+
+/* Responsive enhancements */
+@media (max-width: 768px) {
+    .display-4 {
+        font-size: 2rem;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+    }
+}
