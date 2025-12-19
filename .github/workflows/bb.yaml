@@ -8,6 +8,7 @@ on:
       - "ml_service/**"
       - "producer_service/**"
       - "notification_service/**"
+      - "ui_service/**"
       
   workflow_dispatch:
 
@@ -47,6 +48,8 @@ jobs:
             name: producer
           - context: notification_service
             name: notification
+          - context: ui_service
+            name: ui
 
     steps:
       - uses: actions/checkout@v4
@@ -104,6 +107,7 @@ jobs:
           yq eval -i ".ml.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
           yq eval -i ".producer.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
           yq eval -i ".notification.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
+          yq eval -i ".ui.image.tag = \"${NEW_TAG}\"" "$CONFIG_PATH"
 
           # Проверка изменений (ИСПРАВЛЕННЫЙ СИНТАКСИС)
           if [[ $(git -C helm-config status --porcelain) ]]; then

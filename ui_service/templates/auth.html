@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAN Autoresponder - Авторизация</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --dark-color: #0f172a;
+            --light-color: #f8fafc;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .auth-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .auth-header {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .auth-header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .auth-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .auth-body {
+            padding: 40px;
+        }
+
+        .form-floating {
+            margin-bottom: 20px;
+        }
+
+        .form-floating input {
+            border: none;
+            border-radius: 10px;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            background: #f8fafc;
+            transition: all 0.3s ease;
+        }
+
+        .form-floating input:focus {
+            background: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-color: #2563eb;
+        }
+
+        .btn-auth {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            border: none;
+            border-radius: 50px;
+            padding: 14px 40px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+
+        .btn-secondary-auth {
+            background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+            border: none;
+            border-radius: 50px;
+            padding: 14px 40px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+
+        .auth-footer {
+            text-align: center;
+            padding: 20px 40px 40px;
+            color: #64748b;
+        }
+
+        .auth-footer a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        .alert {
+            border: none;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .floating-elements {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .floating-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating-circle:nth-child(1) {
+            width: 100px;
+            height: 100px;
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .floating-circle:nth-child(2) {
+            width: 150px;
+            height: 150px;
+            top: 60%;
+            left: 80%;
+            animation-delay: 2s;
+        }
+
+        .floating-circle:nth-child(3) {
+            width: 80px;
+            height: 80px;
+            top: 40%;
+            left: 5%;
+            animation-delay: 4s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #ffffff, #93c5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #e5e7eb;
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="floating-elements">
+            <div class="floating-circle"></div>
+            <div class="floating-circle"></div>
+            <div class="floating-circle"></div>
+        </div>
+
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="card auth-card">
+                        <div class="auth-header">
+                            <div class="logo">SAN Autoresponder</div>
+                            <div class="subtitle">Автоматические ответы на отзывы</div>
+                        </div>
+
+                        <div class="auth-body">
+                            <!-- Login Form -->
+                            <div id="loginForm" class="auth-form">
+                                <h3 class="text-center mb-4">
+                                    <i class="fas fa-sign-in-alt me-2"></i>
+                                    Добро пожаловать
+                                </h3>
+                                <p class="text-center text-muted mb-4">
+                                    Войдите в свой аккаунт, чтобы начать
+                                </p>
+
+                                <div id="loginAlert" class="alert alert-danger d-none"></div>
+
+                                <form id="loginFormElement">
+                                    <div class="form-floating mb-3">
+                                        <input type="text" class="form-control" id="loginUsername" placeholder="Имя пользователя" required>
+                                        <label for="loginUsername">
+                                            <i class="fas fa-user me-2"></i>
+                                            Имя пользователя
+                                        </label>
+                                    </div>
+
+                                    <div class="form-floating mb-3">
+                                        <input type="password" class="form-control" id="loginPassword" placeholder="Пароль" required>
+                                        <label for="loginPassword">
+                                            <i class="fas fa-lock me-2"></i>
+                                            Пароль
+                                        </label>
+                                    </div>
+
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-auth">
+                                            <i class="fas fa-sign-in-alt me-2"></i>
+                                            Войти
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <div class="text-center mt-3">
+                                    <p class="text-muted">
+                                        Нет аккаунта?
+                                        <a href="#" id="showRegister" class="text-primary fw-bold">Зарегистрироваться</a>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Register Form -->
+                            <div id="registerForm" class="auth-form d-none">
+                                <h3 class="text-center mb-4">
+                                    <i class="fas fa-user-plus me-2"></i>
+                                    Создать аккаунт
+                                </h3>
+                                <p class="text-center text-muted mb-4">
+                                    Присоединяйтесь к нам, чтобы начать генерацию ответов
+                                </p>
+
+                                <div id="registerAlert" class="alert alert-danger d-none"></div>
+                                <div id="registerSuccess" class="alert alert-success d-none"></div>
+
+                                <form id="registerFormElement">
+                                    <div class="form-floating mb-3">
+                                        <input type="text" class="form-control" id="registerUsername" placeholder="Имя пользователя" required>
+                                        <label for="registerUsername">
+                                            <i class="fas fa-user me-2"></i>
+                                            Имя пользователя
+                                        </label>
+                                    </div>
+
+                                    <div class="form-floating mb-3">
+                                        <input type="password" class="form-control" id="registerPassword" placeholder="Пароль" required>
+                                        <label for="registerPassword">
+                                            <i class="fas fa-lock me-2"></i>
+                                            Пароль
+                                        </label>
+                                    </div>
+
+                                    <div class="form-floating mb-3">
+                                        <input type="password" class="form-control" id="confirmPassword" placeholder="Подтвердите пароль" required>
+                                        <label for="confirmPassword">
+                                            <i class="fas fa-lock me-2"></i>
+                                            Подтвердите пароль
+                                        </label>
+                                    </div>
+
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-auth">
+                                            <i class="fas fa-user-plus me-2"></i>
+                                            Зарегистрироваться
+                                        </button>
+                                    </div>
+                                </form>
+
+                                <div class="text-center mt-3">
+                                    <p class="text-muted">
+                                        Уже есть аккаунт?
+                                        <a href="#" id="showLogin" class="text-primary fw-bold">Войти</a>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="auth-footer">
+                            <p>
+                                Регистрируясь, вы соглашаетесь дать Сёме, Ане и Никите скидку 10% на свои товары на маркетплейсах
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Form switching
+        document.getElementById('showRegister').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('loginForm').classList.add('d-none');
+            document.getElementById('registerForm').classList.remove('d-none');
+        });
+
+        document.getElementById('showLogin').addEventListener('click', function(e) {
+            e.preventDefault();
+            document.getElementById('registerForm').classList.add('d-none');
+            document.getElementById('loginForm').classList.remove('d-none');
+        });
+
+        // Login form submission
+        document.getElementById('loginFormElement').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const alertDiv = document.getElementById('loginAlert');
+
+            alertDiv.classList.add('d-none');
+            alertDiv.textContent = '';
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('username', username);
+                    window.location.href = '/dashboard';
+                } else {
+                    alertDiv.classList.remove('d-none');
+                    alertDiv.textContent = data.detail || 'Ошибка входа';
+                }
+            } catch (error) {
+                alertDiv.classList.remove('d-none');
+                alertDiv.textContent = 'Произошла ошибка. Пожалуйста, попробуйте снова.';
+            }
+        });
+
+        // Register form submission
+        document.getElementById('registerFormElement').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const alertDiv = document.getElementById('registerAlert');
+            const successDiv = document.getElementById('registerSuccess');
+
+            alertDiv.classList.add('d-none');
+            alertDiv.textContent = '';
+            successDiv.classList.add('d-none');
+            successDiv.textContent = '';
+
+            if (password !== confirmPassword) {
+                alertDiv.classList.remove('d-none');
+                alertDiv.textContent = 'Пароли не совпадают';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    successDiv.classList.remove('d-none');
+                    successDiv.textContent = 'Регистрация успешна! Пожалуйста, войдите.';
+                    document.getElementById('registerFormElement').reset();
+                    
+                    // Switch to login form after 2 seconds
+                    setTimeout(() => {
+                        document.getElementById('registerForm').classList.add('d-none');
+                        document.getElementById('loginForm').classList.remove('d-none');
+                    }, 2000);
+                } else {
+                    alertDiv.classList.remove('d-none');
+                    alertDiv.textContent = data.detail || 'Ошибка регистрации';
+                }
+            } catch (error) {
+                alertDiv.classList.remove('d-none');
+                alertDiv.textContent = 'Произошла ошибка. Пожалуйста, попробуйте снова.';
+            }
+        });
+    </script>
+</body>
+</html>
