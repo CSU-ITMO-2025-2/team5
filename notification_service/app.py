@@ -32,7 +32,8 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv(
-    "KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap.team5-ns.svc.cluster.local:9092"
+    "KAFKA_BOOTSTRAP_SERVERS",
+    "my-cluster-kafka-bootstrap.team5-ns.svc.cluster.local:9092",
 )
 TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed_reviews")
 
@@ -185,12 +186,14 @@ async def _consume_loop() -> None:
                 "auto_offset_reset": "earliest",
             }
             if KAFKA_USERNAME and KAFKA_PASSWORD:
-                consumer_config.update({
-                    "sasl_mechanism": "SCRAM-SHA-512",
-                    "security_protocol": "SASL_PLAINTEXT",
-                    "sasl_plain_username": KAFKA_USERNAME,
-                    "sasl_plain_password": KAFKA_PASSWORD,
-                })
+                consumer_config.update(
+                    {
+                        "sasl_mechanism": "SCRAM-SHA-512",
+                        "security_protocol": "SASL_PLAINTEXT",
+                        "sasl_plain_username": KAFKA_USERNAME,
+                        "sasl_plain_password": KAFKA_PASSWORD,
+                    }
+                )
             consumer = AIOKafkaConsumer(TOPIC_PROCESSED, **consumer_config)
             await consumer.start()
             logger.info("Notification consumer started. Waiting for messages...")

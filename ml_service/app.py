@@ -35,7 +35,8 @@ logger = logging.getLogger(__name__)
 
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv(
-    "KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap.team5-ns.svc.cluster.local:9092"
+    "KAFKA_BOOTSTRAP_SERVERS",
+    "my-cluster-kafka-bootstrap.team5-ns.svc.cluster.local:9092",
 )
 TOPIC_RAW = os.getenv("KAFKA_TOPIC_RAW", "raw_reviews")
 TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed_reviews")
@@ -83,13 +84,15 @@ async def get_kafka_producer_with_retry(
                 "value_serializer": lambda v: json.dumps(v).encode("utf-8"),
             }
             if KAFKA_USERNAME and KAFKA_PASSWORD:
-                producer_config.update({
-                    "sasl_mechanism": "SCRAM-SHA-512",
-                    "security_protocol": "SASL_PLAINTEXT",
-                    "sasl_plain_username": KAFKA_USERNAME,
-                    "sasl_plain_password": KAFKA_PASSWORD,
-                })
-            
+                producer_config.update(
+                    {
+                        "sasl_mechanism": "SCRAM-SHA-512",
+                        "security_protocol": "SASL_PLAINTEXT",
+                        "sasl_plain_username": KAFKA_USERNAME,
+                        "sasl_plain_password": KAFKA_PASSWORD,
+                    }
+                )
+
             prod = AIOKafkaProducer(**producer_config)
             await prod.start()
             producer = prod
@@ -371,12 +374,14 @@ async def consume_loop() -> None:
                 "group_id": KAFKA_GROUP_ID,
             }
             if KAFKA_USERNAME and KAFKA_PASSWORD:
-                consumer_config.update({
-                    "sasl_mechanism": "SCRAM-SHA-512",
-                    "security_protocol": "SASL_PLAINTEXT",
-                    "sasl_plain_username": KAFKA_USERNAME,
-                    "sasl_plain_password": KAFKA_PASSWORD,
-                })
+                consumer_config.update(
+                    {
+                        "sasl_mechanism": "SCRAM-SHA-512",
+                        "security_protocol": "SASL_PLAINTEXT",
+                        "sasl_plain_username": KAFKA_USERNAME,
+                        "sasl_plain_password": KAFKA_PASSWORD,
+                    }
+                )
 
             consumer = AIOKafkaConsumer(TOPIC_RAW, **consumer_config)
             await consumer.start()
