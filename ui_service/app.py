@@ -80,9 +80,15 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.get("/auth", response_class=HTMLResponse)
+@app.get("/login", response_class=HTMLResponse)
 async def auth_page(request: Request):
     """Serve the authentication page."""
+    return templates.TemplateResponse("auth.html", {"request": request})
+
+
+@app.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    """Serve the registration page."""
     return templates.TemplateResponse("auth.html", {"request": request})
 
 
