@@ -12,6 +12,8 @@ from security import get_current_user
 import logging
 from typing import Dict
 
+
+TOPIC_RAW = os.getenv("KAFKA_TOPIC_RAW", "raw-reviews")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -56,7 +58,7 @@ async def submit_review(
         dict: Confirmation including review ID and original text.
     """
     message_data = {"text": review.review_text, "username": username}
-    review_id = await send_to_kafka("raw_reviews", message_data)
+    review_id = await send_to_kafka(TOPIC_RAW, message_data)
     logger.info("Review sent to Kafka: %s", review_id)
 
     return {

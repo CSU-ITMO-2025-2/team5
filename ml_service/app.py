@@ -38,8 +38,8 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv(
     "KAFKA_BOOTSTRAP_SERVERS",
     "my-cluster-kafka-bootstrap.team5-ns.svc.cluster.local:9092",
 )
-TOPIC_RAW = os.getenv("KAFKA_TOPIC_RAW", "raw_reviews")
-TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed_reviews")
+TOPIC_RAW = os.getenv("KAFKA_TOPIC_RAW", "raw-reviews")
+TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed-reviews")
 
 KAFKA_USERNAME = os.getenv("KAFKA_USERNAME")
 KAFKA_PASSWORD = os.getenv("KAFKA_PASSWORD")
