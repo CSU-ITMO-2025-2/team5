@@ -15,8 +15,12 @@ class Config:
 
 def get_config() -> Config:
     return Config(
-        auth_base=st.session_state.get("auth_base", "https://team5.kubepractice.ru/auth"),
-        producer_base=st.session_state.get("producer_base", "https://team5.kubepractice.ru/producer"),
+        auth_base=st.session_state.get(
+            "auth_base", "https://team5.kubepractice.ru/auth"
+        ),
+        producer_base=st.session_state.get(
+            "producer_base", "https://team5.kubepractice.ru/producer"
+        ),
         ml_base=st.session_state.get("ml_base", "https://team5.kubepractice.ru/ml"),
     )
 
@@ -44,7 +48,9 @@ def api_request(method: str, url: str, **kwargs) -> Dict[str, Any]:
 def handle_register(cfg: Config) -> None:
     st.subheader("1. Регистрация")
     username = st.text_input("Логин (регистрация)", key="reg_username")
-    password = st.text_input("Пароль (регистрация)", type="password", key="reg_password")
+    password = st.text_input(
+        "Пароль (регистрация)", type="password", key="reg_password"
+    )
 
     if st.button("Зарегистрироваться"):
         if not username or not password:
@@ -196,7 +202,9 @@ def main() -> None:
 
         if st.button("Сохранить настройки"):
             st.session_state["auth_base"] = auth_base.strip() or cfg.auth_base
-            st.session_state["producer_base"] = producer_base.strip() or cfg.producer_base
+            st.session_state["producer_base"] = (
+                producer_base.strip() or cfg.producer_base
+            )
             st.session_state["ml_base"] = ml_base.strip() or cfg.ml_base
             st.success("Настройки сохранены. Обновите страницу при необходимости.")
 

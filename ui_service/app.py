@@ -13,7 +13,7 @@ from pydantic import BaseModel
 app = FastAPI(
     title="SAN Autoresponder UI Service",
     description="Simple web interface for automatic review response generation",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # CORS middleware for API requests
@@ -30,7 +30,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "https://team5.kubepractice.ru/auth")
-PRODUCER_SERVICE_URL = os.getenv("PRODUCER_SERVICE_URL", "https://team5.kubepractice.ru/producer")
+PRODUCER_SERVICE_URL = os.getenv(
+    "PRODUCER_SERVICE_URL", "https://team5.kubepractice.ru/producer"
+)
 ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "https://team5.kubepractice.ru/ml")
 
 # HTTP client
@@ -118,12 +120,14 @@ async def register(user: UserCreate):
     try:
         response = await client.post(
             f"{AUTH_SERVICE_URL}/register/",
-            json={"username": user.username, "password": user.password}
+            json={"username": user.username, "password": user.password},
         )
         response.raise_for_status()
         return {"message": "User registered successfully"}
     except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail="Registration failed")
+        raise HTTPException(
+            status_code=e.response.status_code, detail="Registration failed"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -134,28 +138,32 @@ async def login(user: UserLogin):
     try:
         response = await client.post(
             f"{AUTH_SERVICE_URL}/login/",
-            json={"username": user.username, "password": user.password}
+            json={"username": user.username, "password": user.password},
         )
         response.raise_for_status()
         data = response.json()
         return data
     except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail="Authentication failed")
+        raise HTTPException(
+            status_code=e.response.status_code, detail="Authentication failed"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/reviews/submit")
-async def submit_review(review: ReviewRequest, token: str = Depends(get_token_from_header)):
+async def submit_review(
+    review: ReviewRequest, token: str = Depends(get_token_from_header)
+):
     """Submit a review for analysis."""
     try:
         # Log the incoming request for debugging
         print(f"Received review: {review.review_text}")
-        
+
         response = await client.post(
             f"{PRODUCER_SERVICE_URL}/submit-review/",
             params={"token": token},
-            json={"review_text": review.review_text}
+            json={"review_text": review.review_text},
         )
         response.raise_for_status()
         data = response.json()
@@ -164,19 +172,22 @@ async def submit_review(review: ReviewRequest, token: str = Depends(get_token_fr
         print(f"HTTP Error: {e.response.status_code} - {e.response.text}")
         if e.response.status_code == 401:
             raise HTTPException(status_code=401, detail="Unauthorized")
-        raise HTTPException(status_code=e.response.status_code, detail="Failed to submit review")
+        raise HTTPException(
+            status_code=e.response.status_code, detail="Failed to submit review"
+        )
     except Exception as e:
         print(f"Exception: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/reviews/{review_id}")
-async def get_review_result(review_id: str, token: str = Depends(get_token_from_header)):
+async def get_review_result(
+    review_id: str, token: str = Depends(get_token_from_header)
+):
     """Get review analysis result."""
     try:
         response = await client.get(
-            f"{ML_SERVICE_URL}/reviews/{review_id}",
-            params={"token": token}
+            f"{ML_SERVICE_URL}/reviews/{review_id}", params={"token": token}
         )
         response.raise_for_status()
         data = response.json()
@@ -186,11 +197,14 @@ async def get_review_result(review_id: str, token: str = Depends(get_token_from_
             raise HTTPException(status_code=404, detail="Review not found")
         elif e.response.status_code == 401:
             raise HTTPException(status_code=401, detail="Unauthorized")
-        raise HTTPException(status_code=e.response.status_code, detail="Failed to get review")
+        raise HTTPException(
+            status_code=e.response.status_code, detail="Failed to get review"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8080)
