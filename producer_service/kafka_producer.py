@@ -18,8 +18,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv(
-    "KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    "KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap.team5-ns.svc.cluster.local:9092"
 )
+KAFKA_USERNAME = os.getenv("KAFKA_USERNAME")
+KAFKA_PASSWORD = os.getenv("KAFKA_PASSWORD")
 
 producer: Optional[AIOKafkaProducer] = None
 
@@ -32,10 +34,18 @@ async def get_kafka_producer() -> AIOKafkaProducer:
     """
     global producer
     if producer is None:
-        producer = AIOKafkaProducer(
-            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-            value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-        )
+        producer_config = {
+            "bootstrap_servers": KAFKA_BOOTSTRAP_SERVERS,
+            "value_serializer": lambda v: json.dumps(v).encode("utf-8"),
+        }
+        if KAFKA_USERNAME and KAFKA_PASSWORD:
+            producer_config.update({
+                "sasl_mechanism": "SCRAM-SHA-512",
+                "security_protocol": "SASL_PLAINTEXT",
+                "sasl_plain_username": KAFKA_USERNAME,
+                "sasl_plain_password": KAFKA_PASSWORD,
+            })
+        producer = AIOKafkaProducer(**producer_config)
         await producer.start()
         logger.info("Kafka producer started successfully.")
     return producer

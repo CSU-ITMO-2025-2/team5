@@ -32,9 +32,13 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv(
-    "KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+    "KAFKA_BOOTSTRAP_SERVERS", "my-cluster-kafka-bootstrap.team5-ns.svc.cluster.local:9092"
 )
 TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed_reviews")
+
+KAFKA_USERNAME = os.getenv("KAFKA_USERNAME")
+KAFKA_PASSWORD = os.getenv("KAFKA_PASSWORD")
+KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID", "notification-group")
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_API_URL = (
@@ -175,12 +179,19 @@ async def _consume_loop() -> None:
     while True:
         consumer = None
         try:
-            consumer = AIOKafkaConsumer(
-                TOPIC_PROCESSED,
-                bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-                group_id="notification-group",
-                auto_offset_reset="earliest",
-            )
+            consumer_config = {
+                "bootstrap_servers": KAFKA_BOOTSTRAP_SERVERS,
+                "group_id": KAFKA_GROUP_ID,
+                "auto_offset_reset": "earliest",
+            }
+            if KAFKA_USERNAME and KAFKA_PASSWORD:
+                consumer_config.update({
+                    "sasl_mechanism": "SCRAM-SHA-512",
+                    "security_protocol": "SASL_PLAINTEXT",
+                    "sasl_plain_username": KAFKA_USERNAME,
+                    "sasl_plain_password": KAFKA_PASSWORD,
+                })
+            consumer = AIOKafkaConsumer(TOPIC_PROCESSED, **consumer_config)
             await consumer.start()
             logger.info("Notification consumer started. Waiting for messages...")
 
