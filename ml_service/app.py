@@ -299,7 +299,6 @@ async def analyze_with_openai(text: str, username: str) -> tuple[str, float, str
 
     prompt = (
         template.replace("{{INPUT}}", text.replace('"', '\\"'))
-        .replace("{{USER_NAME}}", username.replace('"', '\\"'))
         .replace("{{EMOTIONS}}", ", ".join(EMOTIONS))
     )
 
