@@ -323,6 +323,8 @@ async def process_message(msg_value: bytes) -> None:
         review_text = data.get("text", "")
         review_id = data.get("id")
         username = data.get("username") or "Customer"
+        
+        await asyncio.sleep(10)
 
         try:
             sentiment, score, reply = await analyze_with_openai(review_text, username)
