@@ -392,6 +392,7 @@ async def consume_loop() -> None:
             await consumer.start()
             logger.info("ML Consumer started.")
             async for msg in consumer:
+                await asyncio.sleep(10)
                 await process_message(msg.value)
         except Exception as exc:
             logger.error("Consumer crashed: %s. Restarting in 5s...", exc)
