@@ -377,6 +377,7 @@ async def consume_loop() -> None:
             consumer_config = {
                 "bootstrap_servers": KAFKA_BOOTSTRAP_SERVERS,
                 "group_id": KAFKA_GROUP_ID,
+                "enable_auto_commit": False,
             }
             if KAFKA_USERNAME and KAFKA_PASSWORD:
                 consumer_config.update(
@@ -394,6 +395,7 @@ async def consume_loop() -> None:
             async for msg in consumer:
                 await asyncio.sleep(10)
                 await process_message(msg.value)
+                await consumer.commit()
         except Exception as exc:
             logger.error("Consumer crashed: %s. Restarting in 5s...", exc)
             await asyncio.sleep(5)
