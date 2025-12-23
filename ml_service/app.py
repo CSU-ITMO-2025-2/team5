@@ -378,6 +378,7 @@ async def consume_loop() -> None:
                 "bootstrap_servers": KAFKA_BOOTSTRAP_SERVERS,
                 "group_id": KAFKA_GROUP_ID,
                 "enable_auto_commit": False,
+                "max_poll_records": 1,
             }
             if KAFKA_USERNAME and KAFKA_PASSWORD:
                 consumer_config.update(
