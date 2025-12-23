@@ -369,6 +369,13 @@ async def process_message(msg_value: bytes) -> None:
     except Exception as exc:
         logger.error("Error processing message: %s", exc, exc_info=True)
 
+async def process_and_commit(consumer: AIOKafkaConsumer, msg):
+    try:
+        await asyncio.sleep(10)
+        await process_message(msg.value)
+        await consumer.commit()
+    except Exception as exc:
+        logger.error("Processing failed: %s", exc, exc_info=True)
 
 async def consume_loop() -> None:
     """Continuously consume messages from Kafka and process them."""
@@ -394,9 +401,7 @@ async def consume_loop() -> None:
             await consumer.start()
             logger.info("ML Consumer started.")
             async for msg in consumer:
-                await asyncio.sleep(10)
-                await process_message(msg.value)
-                await consumer.commit()
+                asyncio.create_task(process_and_commit(consumer, msg))
         except Exception as exc:
             logger.error("Consumer crashed: %s. Restarting in 5s...", exc)
             await asyncio.sleep(5)
