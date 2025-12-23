@@ -188,6 +188,7 @@ async def _consume_loop() -> None:
                 "bootstrap_servers": KAFKA_BOOTSTRAP_SERVERS,
                 "group_id": KAFKA_GROUP_ID,
                 "auto_offset_reset": "earliest",
+                "enable_auto_commit": False,
             }
             if KAFKA_USERNAME and KAFKA_PASSWORD:
                 consumer_config.update(
@@ -235,6 +236,7 @@ async def _consume_loop() -> None:
                     _send_telegram(chat_id, message_text) for chat_id in subscribers
                 ]
                 await asyncio.gather(*tasks)
+                await consumer.commit()
                 logger.info("Broadcast finished successfully.")
 
         except Exception as exc:
