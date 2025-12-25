@@ -1,11 +1,3 @@
-"""ML service application.
-
-This module implements a FastAPI application which consumes raw reviews from
-Kafka, performs emotion detection with a Hugging Face transformer model, writes
-results to the database and republishes processed messages. The model used is
-``cointegrated/rubert-tiny2-cedr-emotion-detection`` (multi-label emotion
-classification).
-"""
 
 from __future__ import annotations
 
@@ -33,13 +25,11 @@ from security import get_current_user
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-QUEUE_SIZE = 10
+QUEUE_SIZE = 50
 WORKER_COUNT = 5
 consumer: Optional[AIOKafkaConsumer] = None
 _consumer_ready_event = asyncio.Event()
-
 message_queue: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_SIZE)
-
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv(
     "KAFKA_BOOTSTRAP_SERVERS",
@@ -47,10 +37,6 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv(
 )
 TOPIC_RAW = os.getenv("KAFKA_TOPIC_RAW", "raw-reviews")
 TOPIC_PROCESSED = os.getenv("KAFKA_TOPIC_PROCESSED", "processed-reviews")
-
-KAFKA_USERNAME = os.getenv("KAFKA_USERNAME")
-KAFKA_PASSWORD = os.getenv("KAFKA_PASSWORD")
-KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID", "ml-service-group")
 
 KAFKA_USERNAME = os.getenv("KAFKA_USERNAME")
 KAFKA_PASSWORD = os.getenv("KAFKA_PASSWORD")
@@ -374,7 +360,7 @@ async def process_message(msg_value: bytes) -> None:
     except Exception as exc:
         logger.error("Error processing message: %s", exc, exc_info=True)
 
-async def worker_loop(consumer: AIOKafkaConsumer, worker_id: int):
+async def worker_loop(worker_id: int):
     logger.info("Worker %d started", worker_id)
 
     while True:
@@ -382,24 +368,8 @@ async def worker_loop(consumer: AIOKafkaConsumer, worker_id: int):
 
         try:
             await process_message(msg.value)
-
-            await consumer.commit()
-            logger.info(
-                "Worker %d committed offset %s (partition %s)",
-                worker_id,
-                msg.offset,
-                msg.partition,
-            )
-
         except Exception as exc:
-            logger.error(
-                "Worker %d failed processing offset %s: %s",
-                worker_id,
-                msg.offset,
-                exc,
-                exc_info=True,
-            )
-
+            logger.error("Worker %d failed processing message: %s", worker_id, exc, exc_info=True)
         finally:
             message_queue.task_done()
 
@@ -407,53 +377,42 @@ async def worker_loop(consumer: AIOKafkaConsumer, worker_id: int):
 async def consume_loop() -> None:
     """Continuously consume messages from Kafka and enqueue them for workers."""
     global consumer
-    while True:
-        try:
-            consumer_config = {
-                "bootstrap_servers": KAFKA_BOOTSTRAP_SERVERS,
-                "group_id": KAFKA_GROUP_ID,
-                "enable_auto_commit": False,
-                "max_poll_records": 1,
-            }
-            if KAFKA_USERNAME and KAFKA_PASSWORD:
-                consumer_config.update(
-                    {
-                        "sasl_mechanism": "SCRAM-SHA-512",
-                        "security_protocol": "SASL_PLAINTEXT",
-                        "sasl_plain_username": KAFKA_USERNAME,
-                        "sasl_plain_password": KAFKA_PASSWORD,
-                    }
-                )
+    consumer_config = {
+        "bootstrap_servers": KAFKA_BOOTSTRAP_SERVERS,
+        "group_id": KAFKA_GROUP_ID,
+        "enable_auto_commit": False,
+        "max_poll_records": 10,
+        "heartbeat_interval_ms": 3000,
+        "session_timeout_ms": 20000,
+    }
+    if KAFKA_USERNAME and KAFKA_PASSWORD:
+        consumer_config.update({
+            "sasl_mechanism": "SCRAM-SHA-512",
+            "security_protocol": "SASL_PLAINTEXT",
+            "sasl_plain_username": KAFKA_USERNAME,
+            "sasl_plain_password": KAFKA_PASSWORD,
+        })
 
-            consumer = AIOKafkaConsumer(TOPIC_RAW, **consumer_config)
-            await consumer.start()
-            logger.info("Kafka consumer started")
+    consumer = AIOKafkaConsumer(TOPIC_RAW, **consumer_config)
+    await consumer.start()
+    try:
+        while not consumer.assignment():
+            await asyncio.sleep(1)
+        logger.info("Consumer has been assigned partitions")
+        _consumer_ready_event.set()
 
-            while not consumer.assignment():
-                await asyncio.sleep(1)
-            logger.info("Consumer has been assigned partitions")
-            _consumer_ready_event.set()
+        for i in range(WORKER_COUNT):
+            asyncio.create_task(worker_loop(i))
 
-            for i in range(WORKER_COUNT):
-                asyncio.create_task(worker_loop(consumer, i))
-
-            # Основной цикл чтения и enqueue
-            async for msg in consumer:
-                await message_queue.put(msg)
-                logger.debug(
-                    "Enqueued message offset %s, queue size %d",
-                    msg.offset,
-                    message_queue.qsize(),
-                )
-
-        except Exception as exc:
-            logger.error(
-                "Consumer crashed: %s. Restarting in 5 seconds...",
-                exc,
-                exc_info=True,
-            )
-            _consumer_ready_event.clear()  # Pod становится не Ready
-            await asyncio.sleep(5)
+        async for msg in consumer:
+            await message_queue.put(msg)
+            while message_queue.qsize() == 0:
+                await consumer.commit()
+    except Exception as exc:
+        logger.error("Consumer crashed: %s", exc, exc_info=True)
+        _consumer_ready_event.clear()
+    finally:
+        await consumer.stop()
 
 
 @asynccontextmanager
