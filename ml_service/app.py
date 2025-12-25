@@ -33,6 +33,11 @@ from security import get_current_user
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+QUEUE_SIZE = 20
+WORKER_COUNT = 5
+
+message_queue: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_SIZE)
+
 
 KAFKA_BOOTSTRAP_SERVERS = os.getenv(
     "KAFKA_BOOTSTRAP_SERVERS",
@@ -51,7 +56,7 @@ KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID", "ml-service-group")
 
 OPENAI_API_KEY = os.getenv("API_KEY")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.proxyapi.ru/openai/v1")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 openai_client: Optional[OpenAI] = None
 producer: Optional[AIOKafkaProducer] = None
@@ -323,8 +328,6 @@ async def process_message(msg_value: bytes) -> None:
         review_text = data.get("text", "")
         review_id = data.get("id")
         username = data.get("username") or "Customer"
-        
-        await asyncio.sleep(10)
 
         try:
             sentiment, score, reply = await analyze_with_openai(review_text, username)
@@ -369,13 +372,35 @@ async def process_message(msg_value: bytes) -> None:
     except Exception as exc:
         logger.error("Error processing message: %s", exc, exc_info=True)
 
-async def process_and_commit(consumer: AIOKafkaConsumer, msg):
-    try:
-        await asyncio.sleep(10)
-        await process_message(msg.value)
-        await consumer.commit()
-    except Exception as exc:
-        logger.error("Processing failed: %s", exc, exc_info=True)
+async def worker_loop(consumer: AIOKafkaConsumer, worker_id: int):
+    logger.info("Worker %d started", worker_id)
+
+    while True:
+        msg = await message_queue.get()
+
+        try:
+            await process_message(msg.value)
+
+            await consumer.commit()
+            logger.info(
+                "Worker %d committed offset %s (partition %s)",
+                worker_id,
+                msg.offset,
+                msg.partition,
+            )
+
+        except Exception as exc:
+            logger.error(
+                "Worker %d failed processing offset %s: %s",
+                worker_id,
+                msg.offset,
+                exc,
+                exc_info=True,
+            )
+
+        finally:
+            message_queue.task_done()
+
 
 async def consume_loop() -> None:
     """Continuously consume messages from Kafka and process them."""
@@ -399,11 +424,25 @@ async def consume_loop() -> None:
 
             consumer = AIOKafkaConsumer(TOPIC_RAW, **consumer_config)
             await consumer.start()
-            logger.info("ML Consumer started.")
+            logger.info("Kafka consumer started")
+
+            for i in range(WORKER_COUNT):
+                asyncio.create_task(worker_loop(consumer, i))
+
             async for msg in consumer:
-                asyncio.create_task(process_and_commit(consumer, msg))
+                await message_queue.put(msg)
+                logger.debug(
+                    "Enqueued message offset",
+                    msg.offset,
+                    message_queue.qsize(),
+                )
+
         except Exception as exc:
-            logger.error("Consumer crashed: %s. Restarting in 5s...", exc)
+            logger.error(
+                "Consumer crashed: %s. Restarting in 5 seconds...",
+                exc,
+                exc_info=True,
+            )
             await asyncio.sleep(5)
 
 
