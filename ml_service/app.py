@@ -33,7 +33,7 @@ from security import get_current_user
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-QUEUE_SIZE = 20
+QUEUE_SIZE = 10
 WORKER_COUNT = 5
 
 message_queue: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_SIZE)
