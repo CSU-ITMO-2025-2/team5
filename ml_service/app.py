@@ -35,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 QUEUE_SIZE = 10
 WORKER_COUNT = 5
+consumer: Optional[AIOKafkaConsumer] = None
+_consumer_ready_event = asyncio.Event()
 
 message_queue: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_SIZE)
 
@@ -403,7 +405,8 @@ async def worker_loop(consumer: AIOKafkaConsumer, worker_id: int):
 
 
 async def consume_loop() -> None:
-    """Continuously consume messages from Kafka and process them."""
+    """Continuously consume messages from Kafka and enqueue them for workers."""
+    global consumer
     while True:
         try:
             consumer_config = {
@@ -426,13 +429,19 @@ async def consume_loop() -> None:
             await consumer.start()
             logger.info("Kafka consumer started")
 
+            while not consumer.assignment():
+                await asyncio.sleep(1)
+            logger.info("Consumer has been assigned partitions")
+            _consumer_ready_event.set()
+
             for i in range(WORKER_COUNT):
                 asyncio.create_task(worker_loop(consumer, i))
 
+            # Основной цикл чтения и enqueue
             async for msg in consumer:
                 await message_queue.put(msg)
                 logger.debug(
-                    "Enqueued message offset",
+                    "Enqueued message offset %s, queue size %d",
                     msg.offset,
                     message_queue.qsize(),
                 )
@@ -443,6 +452,7 @@ async def consume_loop() -> None:
                 exc,
                 exc_info=True,
             )
+            _consumer_ready_event.clear()  # Pod становится не Ready
             await asyncio.sleep(5)
 
 
@@ -481,6 +491,9 @@ async def health():
         "kafka": "ready" if producer else "initializing",
     }
 
+@app.get("/ml/consumer_ready")
+async def consumer_ready():
+    return {"ready": _consumer_ready_event.is_set()}
 
 @app.get("/reviews/{review_id}")
 async def get_review_result(
