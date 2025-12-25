@@ -406,8 +406,7 @@ async def consume_loop() -> None:
 
         async for msg in consumer:
             await message_queue.put(msg)
-            while message_queue.qsize() == 0:
-                await consumer.commit()
+            await consumer.commit()
     except Exception as exc:
         logger.error("Consumer crashed: %s", exc, exc_info=True)
         _consumer_ready_event.clear()
