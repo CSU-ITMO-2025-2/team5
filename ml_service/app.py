@@ -15,12 +15,14 @@ from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy import select
 from openai import OpenAI
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
+import httpx
 
 from pathlib import Path
 from database import engine, AsyncSessionLocal
 from db_core import Base
 from models import ReviewResult
 from security import get_current_user
+from circuit_breaker import create_openai_circuit_breaker, create_kafka_circuit_breaker
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -49,6 +51,9 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 openai_client: Optional[OpenAI] = None
 producer: Optional[AIOKafkaProducer] = None
 sentiment_pipeline: Optional[Any] = None
+
+openai_circuit_breaker = create_openai_circuit_breaker("OpenAI")
+kafka_circuit_breaker = create_kafka_circuit_breaker("Kafka-Producer")
 
 EMOTIONS = ["neutral", "happiness", "sadness", "enthusiasm", "fear", "anger", "disgust"]
 _PROMPT_CACHE: dict[str, str] = {}
@@ -223,17 +228,31 @@ async def _make_openai_call(create_method, prompt: str, timeout: float = 15.0) -
         )
 
 
-async def _call_openai(prompt: str, timeout: Optional[float] = 15.0) -> str:
-    """
-    Robust wrapper that calls the OpenAI client and returns a textual response.
-    """
-    try:
+async def _call_openai_with_circuit_breaker(prompt: str, timeout: Optional[float] = 15.0) -> str:
+
+    async def _call_openai_func():
         create_method = _get_openai_create_method()
         resp = await _make_openai_call(create_method, prompt, timeout)
         return _extract_text_from_response(resp)
+    
+    try:
+        result = await openai_circuit_breaker.call(_call_openai_func)
+        return result
     except Exception as exc:
-        logger.exception("OpenAI call failed: %s", exc)
+        logger.error(f"OpenAI circuit breaker failed: {exc}")
         raise
+
+
+async def _send_to_kafka_with_circuit_breaker(topic: str, message: dict) -> None:
+    async def _send_func():
+        if producer:
+            await producer.send_and_wait(topic, message)
+    
+    try:
+        await kafka_circuit_breaker.call(_send_func)
+    except Exception as exc:
+        logger.error(f"Kafka circuit breaker failed: {exc}")
+        logger.warning("Kafka send failed, but continuing processing")
 
 
 def _extract_json_from_text(raw_text: str) -> dict[str, Any]:
@@ -295,7 +314,7 @@ async def analyze_with_openai(text: str, username: str) -> tuple[str, float, str
         .replace("{{EMOTIONS}}", ", ".join(EMOTIONS))
     )
 
-    raw = await _call_openai(prompt)
+    raw = await _call_openai_with_circuit_breaker(prompt)
     if hasattr(raw, "text"):
         raw = raw.text
     raw = (raw or "").strip()
@@ -344,17 +363,16 @@ async def process_message(msg_value: bytes) -> None:
             await session.commit()
             await session.refresh(new_review)
 
-        if producer:
-            processed_data = {
-                "review_id": review_id,
-                "sentiment": sentiment,
-                "score": round(score, 4),
-                "reply": reply,
-                "user": username,
-                "text": review_text,
-                "created_at": new_review.created_at.isoformat(),
-            }
-            await producer.send_and_wait(TOPIC_PROCESSED, processed_data)
+        processed_data = {
+            "review_id": review_id,
+            "sentiment": sentiment,
+            "score": round(score, 4),
+            "reply": reply,
+            "user": username,
+            "text": review_text,
+            "created_at": new_review.created_at.isoformat(),
+        }
+        await _send_to_kafka_with_circuit_breaker(TOPIC_PROCESSED, processed_data)
 
         logger.info("Analyzed review %s: %s", review_id, sentiment)
     except Exception as exc:
