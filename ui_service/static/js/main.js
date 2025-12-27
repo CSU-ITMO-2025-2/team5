@@ -154,6 +154,7 @@ const dashboard = {
         const loadingSpinner = $('#loadingSpinner');
         const resultCard = $('#resultCard');
         const errorAlert = $('#errorAlert');
+        const loadingText = $('#loadingText');
         
         console.log('Submitting review:', reviewText);
         
@@ -161,6 +162,7 @@ const dashboard = {
         resultCard.classList.add('d-none');
         errorAlert.classList.add('d-none');
         errorAlert.textContent = '';
+        loadingText.textContent = 'Анализируем отзыв...';
         
         try {
             console.log('Sending API request with data:', { review_text: reviewText });
@@ -199,15 +201,13 @@ const dashboard = {
                     }
                 }, 2000);
                 
-                // Limit polling time to 30 seconds in case of error
+                // Change text after 10 seconds to be more friendly :)))
                 setTimeout(() => {
-                    clearInterval(pollInterval);
                     if (resultCard.classList.contains('d-none')) {
-                        errorAlert.classList.remove('d-none');
-                        errorAlert.textContent = 'Анализ отзыва занимает больше времени, чем обычно. Пожалуйста, проверьте позже.';
-                        ui.hideLoading(loadingSpinner);
+                        loadingText.textContent = 'Еще немного, генерируем результат...';
                     }
-                }, 30000);
+                }, 10000);
+                
             } else {
                 throw new Error(data.detail || 'Не удалось отправить отзыв');
             }
