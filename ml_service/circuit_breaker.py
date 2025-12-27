@@ -36,6 +36,7 @@ class CircuitBreaker:
             if self.state == "OPEN":
                 if time.time() - self.last_failure_time > self.recovery_timeout:
                     self.state = "HALF_OPEN"
+                    self.failure_count = 0
                     self._success_count = 0
                     self._log(f"Transitioned to HALF_OPEN")
                 else:
