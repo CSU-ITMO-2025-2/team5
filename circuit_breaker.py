@@ -177,14 +177,6 @@ def create_openai_circuit_breaker(name: str = "OpenAI") -> CircuitBreaker:
     return CircuitBreaker(
         failure_threshold=1,
         recovery_timeout=5,
-        expected_exception=(httpx.RequestError, httpx.TimeoutException, Exception),
-        name=name
-    )
-
-def create_kafka_circuit_breaker(name: str = "Kafka") -> CircuitBreaker:
-    return CircuitBreaker(
-        failure_threshold=5,
-        recovery_timeout=60,
         expected_exception=(Exception,),
         name=name
     )
@@ -193,7 +185,7 @@ def create_http_circuit_breaker(name: str = "HTTP") -> CircuitBreaker:
     return CircuitBreaker(
         failure_threshold=3,
         recovery_timeout=30,
-        expected_exception=(httpx.HTTPStatusError, httpx.TimeoutException, httpx.RequestError),
+        expected_exception=(Exception,),
         name=name
     )
 
@@ -201,6 +193,6 @@ def create_telegram_circuit_breaker(name: str = "Telegram") -> CircuitBreaker:
     return CircuitBreaker(
         failure_threshold=3,
         recovery_timeout=60,
-        expected_exception=(httpx.HTTPStatusError, httpx.TimeoutException),
+        expected_exception=(Exception,),
         name=name
     )

@@ -26,6 +26,7 @@ from dateutil import parser
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 from db import init_db, add_subscriber, get_all_subscribers
+from circuit_breaker import create_telegram_circuit_breaker
 
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,7 @@ TELEGRAM_API_URL = (
 bot = Bot(token=TELEGRAM_BOT_TOKEN) if TELEGRAM_BOT_TOKEN else None
 dp = Dispatcher()
 
+telegram_circuit_breaker = create_telegram_circuit_breaker("Telegram-Notification")
 
 @dp.message(CommandStart())
 async def handle_start(message: types.Message):
@@ -89,6 +91,30 @@ def _load_json_mapping(file_path: str) -> Dict[str, str]:
 
 EMOTION_MAPPING = _load_json_mapping("mapping/emotion_to_sentiment.json")
 EMOTION_TRANSLATE = _load_json_mapping("mapping/emotion_to_russian.json")
+
+
+async def _send_telegram_with_circuit_breaker(chat_id: int, message: str) -> None:
+    if not TELEGRAM_API_URL:
+        return
+
+    async def _send_telegram_func():
+        payload = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(TELEGRAM_API_URL, json=payload, timeout=5)
+            if resp.is_success:
+                logger.debug(
+                    "Telegram notification sent to %s (status=%s)",
+                    chat_id,
+                    resp.status_code,
+                )
+            else:
+                resp.raise_for_status()
+
+    try:
+        await telegram_circuit_breaker.call(_send_telegram_func)
+    except Exception as exc:
+        logger.error(f"Telegram circuit breaker failed for chat_id {chat_id}: {exc}")
+        logger.warning(f"Telegram send failed for chat_id {chat_id}, but continuing processing")
 
 
 async def _send_telegram(chat_id: int, message: str) -> None:
@@ -233,7 +259,7 @@ async def _consume_loop() -> None:
 
                 logger.info("Broadcasting message to %d subscribers", len(subscribers))
                 tasks = [
-                    _send_telegram(chat_id, message_text) for chat_id in subscribers
+                    _send_telegram_with_circuit_breaker(chat_id, message_text) for chat_id in subscribers
                 ]
                 await asyncio.gather(*tasks)
                 await consumer.commit()
