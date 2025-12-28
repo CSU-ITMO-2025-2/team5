@@ -26,8 +26,8 @@ from circuit_breaker import create_openai_circuit_breaker
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-QUEUE_SIZE = 50
-WORKER_COUNT = 5
+QUEUE_SIZE = 10
+WORKER_COUNT = 3
 consumer: Optional[AIOKafkaConsumer] = None
 _consumer_ready_event = asyncio.Event()
 message_queue: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_SIZE)
