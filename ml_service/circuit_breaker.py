@@ -174,8 +174,8 @@ class FallbackCircuitBreaker(CircuitBreaker):
 
 def create_openai_circuit_breaker(name: str = "OpenAI") -> CircuitBreaker:
     return CircuitBreaker(
-        failure_threshold=1,
-        recovery_timeout=5,
+        failure_threshold=100,
+        recovery_timeout=10,
         expected_exception=(Exception,),
         name=name,
     )
