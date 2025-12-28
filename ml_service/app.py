@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import inspect
@@ -227,13 +226,15 @@ async def _make_openai_call(create_method, prompt: str, timeout: float = 15.0) -
         )
 
 
-async def _call_openai_with_circuit_breaker(prompt: str, timeout: Optional[float] = 15.0) -> str:
+async def _call_openai_with_circuit_breaker(
+    prompt: str, timeout: Optional[float] = 15.0
+) -> str:
 
     async def _call_openai_func():
         create_method = _get_openai_create_method()
         resp = await _make_openai_call(create_method, prompt, timeout)
         return _extract_text_from_response(resp)
-    
+
     try:
         result = await openai_circuit_breaker.call(_call_openai_func)
         return result
@@ -296,9 +297,8 @@ async def analyze_with_openai(text: str, username: str) -> tuple[str, float, str
     """
     template = load_prompt("review_emotion_and_reply.txt")
 
-    prompt = (
-        template.replace("{{INPUT}}", text.replace('"', '\\"'))
-        .replace("{{EMOTIONS}}", ", ".join(EMOTIONS))
+    prompt = template.replace("{{INPUT}}", text.replace('"', '\\"')).replace(
+        "{{EMOTIONS}}", ", ".join(EMOTIONS)
     )
 
     raw = await _call_openai_with_circuit_breaker(prompt)
@@ -366,6 +366,7 @@ async def process_message(msg_value: bytes) -> None:
     except Exception as exc:
         logger.error("Error processing message: %s", exc, exc_info=True)
 
+
 async def worker_loop(worker_id: int):
     logger.info("Worker %d started", worker_id)
 
@@ -375,7 +376,9 @@ async def worker_loop(worker_id: int):
         try:
             await process_message(msg.value)
         except Exception as exc:
-            logger.error("Worker %d failed processing message: %s", worker_id, exc, exc_info=True)
+            logger.error(
+                "Worker %d failed processing message: %s", worker_id, exc, exc_info=True
+            )
         finally:
             message_queue.task_done()
 
@@ -392,12 +395,14 @@ async def consume_loop() -> None:
         "session_timeout_ms": 20000,
     }
     if KAFKA_USERNAME and KAFKA_PASSWORD:
-        consumer_config.update({
-            "sasl_mechanism": "SCRAM-SHA-512",
-            "security_protocol": "SASL_PLAINTEXT",
-            "sasl_plain_username": KAFKA_USERNAME,
-            "sasl_plain_password": KAFKA_PASSWORD,
-        })
+        consumer_config.update(
+            {
+                "sasl_mechanism": "SCRAM-SHA-512",
+                "security_protocol": "SASL_PLAINTEXT",
+                "sasl_plain_username": KAFKA_USERNAME,
+                "sasl_plain_password": KAFKA_PASSWORD,
+            }
+        )
 
     consumer = AIOKafkaConsumer(TOPIC_RAW, **consumer_config)
     await consumer.start()
@@ -455,9 +460,11 @@ async def health():
         "kafka": "ready" if producer else "initializing",
     }
 
+
 @app.get("/consumer/status")
 async def consumer_ready():
     return {"ready": _consumer_ready_event.is_set()}
+
 
 @app.get("/reviews/{review_id}")
 async def get_review_result(

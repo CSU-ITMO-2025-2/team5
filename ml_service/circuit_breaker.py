@@ -3,16 +3,16 @@ import asyncio
 from typing import Callable, Any, TypeVar, Coroutine, Optional, Tuple
 import httpx
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class CircuitBreaker:
     def __init__(
-            self,
-            failure_threshold: int = 5,
-            recovery_timeout: int = 60,
-            expected_exception: tuple = (Exception,),
-            name: str = "CircuitBreaker"
+        self,
+        failure_threshold: int = 5,
+        recovery_timeout: int = 60,
+        expected_exception: tuple = (Exception,),
+        name: str = "CircuitBreaker",
     ):
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
@@ -27,10 +27,7 @@ class CircuitBreaker:
         self._half_open_max_successes = 3
 
     async def call(
-            self,
-            func: Callable[..., Coroutine[Any, Any, T]],
-            *args,
-            **kwargs
+        self, func: Callable[..., Coroutine[Any, Any, T]], *args, **kwargs
     ) -> T:
         async with self._lock:
             if self.state == "OPEN":
@@ -40,7 +37,9 @@ class CircuitBreaker:
                     self._success_count = 0
                     self._log(f"Transitioned to HALF_OPEN")
                 else:
-                    raise Exception(f"Circuit breaker '{self.name}' is OPEN - service unavailable")
+                    raise Exception(
+                        f"Circuit breaker '{self.name}' is OPEN - service unavailable"
+                    )
 
         try:
             result = await func(*args, **kwargs)
@@ -55,7 +54,9 @@ class CircuitBreaker:
         async with self._lock:
             if self.state == "HALF_OPEN":
                 self._success_count += 1
-                self._log(f"Success #{self._success_count}/{self._half_open_max_successes} in HALF_OPEN")
+                self._log(
+                    f"Success #{self._success_count}/{self._half_open_max_successes} in HALF_OPEN"
+                )
 
                 if self._success_count >= self._half_open_max_successes:
                     self.reset()
@@ -97,7 +98,7 @@ class CircuitBreaker:
             "success_count": self._success_count,
             "failure_threshold": self.failure_threshold,
             "recovery_timeout": self.recovery_timeout,
-            "last_failure_time": self.last_failure_time
+            "last_failure_time": self.last_failure_time,
         }
 
     def _log(self, message: str) -> None:
@@ -134,22 +135,19 @@ class FallbackCircuitBreaker(CircuitBreaker):
     """
 
     def __init__(
-            self,
-            failure_threshold: int = 5,
-            recovery_timeout: int = 60,
-            expected_exception: tuple = (Exception,),
-            name: str = "FallbackCircuitBreaker",
-            fallback_func: Optional[Callable[..., Coroutine[Any, Any, T]]] = None
+        self,
+        failure_threshold: int = 5,
+        recovery_timeout: int = 60,
+        expected_exception: tuple = (Exception,),
+        name: str = "FallbackCircuitBreaker",
+        fallback_func: Optional[Callable[..., Coroutine[Any, Any, T]]] = None,
     ):
 
         super().__init__(failure_threshold, recovery_timeout, expected_exception, name)
         self.fallback_func = fallback_func
 
     async def call_with_fallback(
-            self,
-            func: Callable[..., Coroutine[Any, Any, T]],
-            *args,
-            **kwargs
+        self, func: Callable[..., Coroutine[Any, Any, T]], *args, **kwargs
     ) -> Tuple[T, bool]:
         """
         Execute function with circuit breaker protection and fallback.
@@ -179,7 +177,7 @@ def create_openai_circuit_breaker(name: str = "OpenAI") -> CircuitBreaker:
         failure_threshold=1,
         recovery_timeout=5,
         expected_exception=(Exception,),
-        name=name
+        name=name,
     )
 
 
@@ -188,7 +186,7 @@ def create_http_circuit_breaker(name: str = "HTTP") -> CircuitBreaker:
         failure_threshold=3,
         recovery_timeout=30,
         expected_exception=(Exception,),
-        name=name
+        name=name,
     )
 
 
@@ -197,5 +195,5 @@ def create_telegram_circuit_breaker(name: str = "Telegram") -> CircuitBreaker:
         failure_threshold=3,
         recovery_timeout=60,
         expected_exception=(Exception,),
-        name=name
+        name=name,
     )
