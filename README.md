@@ -27,7 +27,7 @@
 
 - **Backend**: FastAPI, Python 3.10-3.11
 - **База данных**: PostgreSQL с SQLAlchemy ORM
-- **Сообщения**: Apache Kafka с Zookeeper
+- **Сообщения**: Apache Kafka + KRaft
 - **ML**: OpenAI API (gpt-4o-mini)
 - **Frontend**: HTML, CSS, JavaScript, Bootstrap
 - **Контейнеризация**: Docker
