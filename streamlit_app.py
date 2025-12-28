@@ -59,7 +59,7 @@ def handle_register(cfg: Config) -> None:
         try:
             api_request(
                 "POST",
-                f"{cfg.auth_base}/register/",
+                f"{cfg.auth_base}/users",
                 json={"username": username, "password": password},
             )
             st.success("Пользователь успешно создан")
@@ -79,7 +79,7 @@ def handle_login(cfg: Config) -> None:
         try:
             data = api_request(
                 "POST",
-                f"{cfg.auth_base}/login/",
+                f"{cfg.auth_base}/sessions",
                 json={"username": username, "password": password},
             )
             token = data.get("access_token")
@@ -113,7 +113,7 @@ def handle_send_review(cfg: Config) -> None:
         try:
             data = api_request(
                 "POST",
-                f"{cfg.producer_base}/submit-review/?token={st.session_state['access_token']}",
+                f"{cfg.producer_base}/reviews?token={st.session_state['access_token']}",
                 json={"review_text": review_text},
             )
             review_id = data.get("review_id")

@@ -2,9 +2,9 @@
 
 This module exposes two endpoints used by other services and clients:
 
-- ``POST /register/`` — register a new user; returns a simple success
+- ``POST /users`` — register a new user; returns a simple success
   message on creation.
-- ``POST /login/`` — authenticate a user and return a JSON Web Token
+- ``POST /sessions`` — authenticate a user and return a JSON Web Token
   (JWT) in the response body.
 
 The implementation relies on an asynchronous SQLAlchemy session provided by
@@ -34,7 +34,7 @@ app = FastAPI(
 )
 
 
-@app.post("/register/")
+@app.post("/users")
 async def register(user: UserCreate, db: AsyncSession = Depends(get_db)) -> dict:
     """Register a new user.
 
@@ -57,7 +57,7 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)) -> dict
     return {"msg": "User created successfully"}
 
 
-@app.post("/login/", response_model=Token)
+@app.post("/sessions", response_model=Token)
 async def login(user: UserLogin, db: AsyncSession = Depends(get_db)) -> Token:
     """Authenticate user and return an access token.
 

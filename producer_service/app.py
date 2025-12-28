@@ -44,7 +44,7 @@ async def shutdown_event() -> None:
         await producer.stop()
 
 
-@app.post("/submit-review/")
+@app.post("/reviews")
 async def submit_review(
     review: ReviewRequest, username: str = Depends(get_current_user)
 ) -> dict:

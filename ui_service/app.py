@@ -114,12 +114,12 @@ async def get_token_from_header(request: Request) -> str:
     return auth_header.split(" ")[1]
 
 
-@app.post("/api/auth/register")
+@app.post("/api/users")
 async def register(user: UserCreate):
     """Register a new user."""
     try:
         response = await client.post(
-            f"{AUTH_SERVICE_URL}/register/",
+            f"{AUTH_SERVICE_URL}/users",
             json={"username": user.username, "password": user.password},
         )
         response.raise_for_status()
@@ -132,12 +132,12 @@ async def register(user: UserCreate):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/auth/login")
+@app.post("/api/sessions")
 async def login(user: UserLogin):
     """Authenticate user and return token."""
     try:
         response = await client.post(
-            f"{AUTH_SERVICE_URL}/login/",
+            f"{AUTH_SERVICE_URL}/sessions",
             json={"username": user.username, "password": user.password},
         )
         response.raise_for_status()
@@ -151,7 +151,7 @@ async def login(user: UserLogin):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/api/reviews/submit")
+@app.post("/api/reviews")
 async def submit_review(
     review: ReviewRequest, token: str = Depends(get_token_from_header)
 ):
@@ -161,7 +161,7 @@ async def submit_review(
         print(f"Received review: {review.review_text}")
 
         response = await client.post(
-            f"{PRODUCER_SERVICE_URL}/submit-review/",
+            f"{PRODUCER_SERVICE_URL}/reviews",
             params={"token": token},
             json={"review_text": review.review_text},
         )

@@ -321,7 +321,7 @@
             errorAlert.textContent = '';
 
             try {
-                const response = await fetch('/api/reviews/submit', {
+                const response = await fetch('/api/reviews', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

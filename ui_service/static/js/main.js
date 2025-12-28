@@ -307,7 +307,7 @@ const authPage = {
         alertDiv.textContent = '';
         
         try {
-            const data = await fetch('/api/auth/login', {
+            const data = await fetch('/api/sessions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
@@ -350,7 +350,7 @@ const authPage = {
         }
         
         try {
-            const data = await fetch('/api/auth/register', {
+            const data = await fetch('/api/users', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })

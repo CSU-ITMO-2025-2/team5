@@ -455,7 +455,7 @@ async def health():
         "kafka": "ready" if producer else "initializing",
     }
 
-@app.get("/consumer_ready")
+@app.get("/consumer/status")
 async def consumer_ready():
     return {"ready": _consumer_ready_event.is_set()}
 
