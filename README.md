@@ -4,7 +4,14 @@
 
 **SAN Autoresponder** - это распределенная система для автоматической генерации ответов на отзывы клиентов с анализом эмоций.
 
+
+
+<img width="1462" height="1030" alt="изображение" src="https://github.com/user-attachments/assets/6c42420b-fd16-480c-9270-4b9d50d973c2" />
+
 Если вы не знаете как ответить на отзыв **"Не включается!!! 1 звезда!!!"** от покупателя товара **"Муляж IPhone 17 Pro"**, SAN Autoresponder сохранит ваши нервы.
+
+<img width="1440" height="1156" alt="изображение" src="https://github.com/user-attachments/assets/615cd59c-f6fe-410a-805d-5b9234490570" />
+
 
 ### Архитектура
 
